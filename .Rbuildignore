@@ -1,0 +1,9 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^data-raw$
+^sandbox$
+^plots$
+^LICENSE\.md$
+^vignettes/articles$
+^doc$
+^Meta$

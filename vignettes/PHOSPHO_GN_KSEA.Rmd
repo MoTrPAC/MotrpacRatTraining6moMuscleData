@@ -1,0 +1,237 @@
+---
+title: "Phosphoproteomics Kinase-Substrate Enrichment Analysis"
+author: "Tyler Sagendorf"
+date: "Last compiled `r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Phosphoproteomics Kinase-Substrate Enrichment Analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+```{r setup}
+# Required packages
+library(MotrpacRatTraining6moMuscleData)
+library(dplyr)
+library(fgsea)
+library(TMSig)
+```
+
+# Prepare Phosphoproteomics DA Results
+
+```{r}
+y <- lapply(PHOSPHO_GN_DA, function(yi) {
+  yi %>% 
+    select(contrast, featureName, z) %>% 
+    left_join(RAT_TO_HUMAN_SITE, 
+              by = c("featureName" = "ptm_id_rat_refseq")) %>% 
+    rename(human_feature = ptm_id_human_uniprot) %>% 
+    mutate(
+      is_human = !is.na(human_feature),
+      # If the human phosphosite is missing, use the rat site to avoid removing
+      # or collapsing those rows.
+      human_feature = ifelse(is_human,
+                             human_feature,
+                             featureName),
+      # Separate UniProt ID from sites to split sites
+      human_uniprot = ifelse(is_human, 
+                             sub("_.*", "", human_feature),
+                             sub("([A-Z]P_[^_]+).*", "\\1", human_feature)),
+      human_site = sub(".*_", "", human_feature),
+      human_site = strsplit(human_site, split = ";")
+    ) %>% 
+    tidyr::unnest(cols = human_site) %>% 
+    # Select row with largest absolute z-score for each site
+    arrange(contrast, human_uniprot, human_site, -abs(z)) %>% 
+    # Total number of z-scores per site. Only the most extreme is kept
+    mutate(n = n(), .by = c(contrast, human_uniprot, human_site)) %>% 
+    filter(!duplicated(human_site), .by = c(contrast, human_uniprot)) %>% 
+    mutate(featureID = paste0(human_uniprot, "-", human_site))
+})
+```
+
+
+```{r}
+# What proportion of sites are on human proteins? About 0.683
+prop_human_sites <- bind_rows(y) %>% 
+  distinct(featureID, is_human) %>% 
+  pull(is_human) %>% 
+  mean()
+prop_human_sites # 0.6830327
+```
+
+About `r round(100 * prop_human_sites, digits = 1)`% of the phosphorylation sites are on human proteins. Only these sites have the potential to be included in the analysis.
+
+```{r}
+# Histogram of number of rows per site
+n_rows_per_site <- bind_rows(y) %>% 
+  arrange(featureID, -n) %>% 
+  filter(!duplicated(featureID)) %>% 
+  pull(n)
+
+hist(n_rows_per_site, breaks = 1:20, 
+     xlab = NULL, main = "Histogram of z-scores per site")
+```
+
+The majority of sites (`r round(100 * mean(n_rows_per_site == 1), digits = 1)`)% were singly phosphorylated.
+
+```{r}
+# We will reformat the results to a list of matrices
+phospho_GN_stats <- lapply(y, function(yi) {
+  yi %>% 
+    tidyr::pivot_wider(id_cols = featureID, 
+                       names_from = contrast, 
+                       values_from = z) %>% 
+    as.data.frame() %>% 
+    `rownames<-`(.$featureID) %>% 
+    select(-featureID) %>% 
+    as.matrix()
+})
+```
+
+
+
+# Prepare Kinase Sets
+
+```{r}
+background <- rownames(phospho_GN_stats$trained_vs_SED)
+
+table(unique(unlist(human_kinase_sets)) %in% background)
+```
+
+Only 848 human sites in the background (~8.6%) are known to be phosphorylated by at least one kinase.
+
+```{r}
+phospho_GN_kinase_sets <- filter_sets(human_kinase_sets,
+                                      background = background,
+                                      min_size = 3L,
+                                      max_size = length(background) - 1L)
+
+length(human_kinase_sets) # 319
+length(phospho_GN_kinase_sets) # 110
+```
+
+Only `r length(phospho_GN_kinase_sets)` kinase sets remain for testing.
+
+```{r}
+hist(lengths(phospho_GN_kinase_sets), breaks = 20)
+```
+
+Most kinases have few sites.
+
+
+
+# KSEA
+
+## FGSEA
+
+We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
+
+```{r eval=FALSE, message=FALSE, warning=FALSE}
+PHOSPHO_GN_FGSEA <- lapply(phospho_GN_stats, function(x) {
+  lapply(colnames(x), function(contrast_i) {
+    
+    stats_i <- na.omit(x[, contrast_i])
+
+    set.seed(9001)
+    
+    fgseaMultilevel(
+      pathways = phospho_GN_kinase_sets, 
+      stats = stats_i,
+      # precision of p-values
+      eps = 0, 
+      nproc = 4,
+      # Number of permutations. Affects precision of NES and p-values.
+      nPermSimple = 1e4
+    ) %>% 
+      mutate(Contrast = contrast_i)
+  }) %>% 
+    bind_rows() %>% 
+    rename(Kinase = pathway, NSites = size, 
+           PValue = pval, PAdj = padj, 
+           LeadingEdge = leadingEdge) %>% 
+    mutate(
+      Contrast = factor(Contrast, levels = unique(Contrast)),
+      Direction = ifelse(NES >= 0, "Up", "Down"),
+      PAdj = p.adjust(PValue, method = "BH"),
+      NSitesPSP = lengths(human_kinase_sets)[Kinase],
+      Direction = factor(Direction, levels = c("Up", "Down"))
+    ) %>% 
+    # Reorder columns
+    select(Contrast, Kinase, NSites, NSitesPSP, 
+           Direction, NES, 
+           PValue, PAdj, LeadingEdge) %>% 
+    arrange(Contrast, PValue, NES)
+})
+```
+
+```{r}
+# Count number of significant gene sets
+lapply(PHOSPHO_GN_FGSEA, function(x) with(x, table(Contrast, PAdj < 0.05)))
+```
+
+```{r}
+# Format of results
+head(PHOSPHO_GN_FGSEA$trained_vs_SED)
+```
+
+
+## CAMERA
+
+We will also perform Correlation Adjusted MEan RAnk gene set testing (CAMERA) with `TMSig::cameraPR.matrix`, a fast matrix method for `limma::cameraPR`.
+
+```{r eval=FALSE, message=FALSE}
+# CAMERA (pre-ranked)
+PHOSPHO_GN_CAMERA <- lapply(phospho_GN_stats, function(x) {
+  cameraPR(statistic = x,
+           index = phospho_GN_kinase_sets, 
+           adjust.globally = TRUE) %>% 
+    rename(Kinase = GeneSet, NSites = NGenes, PAdj = FDR) %>% 
+    mutate(
+      NSitesPSP = lengths(human_kinase_sets)[Kinase],
+      # Modifications to reduce object size
+      ZScore = zscoreT(TwoSampleT, df = df, method = "hill"),
+      Direction = factor(Direction, levels = c("Up", "Down"))
+    ) %>%
+    # Reorder columns
+    select(Contrast, Kinase, NSites, NSitesPSP,
+           Direction, TwoSampleT, df, ZScore, PValue, PAdj)
+})
+```
+
+```{r}
+# Count number of significant gene sets
+lapply(PHOSPHO_GN_CAMERA, function(x) with(x, table(Contrast, PAdj < 0.05)))
+```
+
+```{r}
+# Format of results
+head(PHOSPHO_GN_CAMERA$trained_vs_SED)
+```
+
+
+```{r eval=FALSE}
+# Save results
+usethis::use_data(phospho_GN_kinase_sets, overwrite = TRUE, version = 3)
+usethis::use_data(PHOSPHO_GN_FGSEA, overwrite = TRUE, version = 3)
+usethis::use_data(PHOSPHO_GN_CAMERA, overwrite = TRUE, version = 3)
+```
+
+
+# Session Info
+
+```{r}
+sI <- sessionInfo()
+print(sI, locale = FALSE)
+```

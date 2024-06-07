@@ -1,0 +1,319 @@
+---
+title: "Redox Proteomics Gene Set Testing"
+author: "Tyler Sagendorf"
+date: "Last compiled `r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Redox Proteomics Gene Set Testing}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>", 
+  fig.width = 6, 
+  fig.height = 4
+)
+```
+
+```{r setup, message=FALSE, warning=FALSE}
+# Required packages
+library(Biobase)
+library(dplyr)
+library(fgsea)
+library(MotrpacRatTraining6moMuscleData)
+library(TMSig) # set filtering, similarity, clustering
+library(stats)
+```
+
+
+# Prepare Gene Sets
+
+## Restrict Sets to Background
+
+We begin by restricting the rat gene sets to only those 352 genes from the redox proteomics expression data (the `background`).
+
+```{r}
+background <- fData(REDOX_GN)$gene_symbol %>% 
+  unique(incomparables = NA)
+mean(is.na(background)) # 0.1800375
+
+background <- background[!is.na(background)]
+
+length(background) # 3935 genes
+```
+
+```{r}
+redox_GN_gene_sets <- filter_sets(rat_gene_sets, 
+                                   background = background,
+                                   min_size = 5L,
+                                   max_size = length(background) - 1L)
+length(rat_gene_sets) # 9293
+length(redox_GN_gene_sets) # 5353
+```
+
+Only `r length(redox_GN_gene_sets)` gene sets have at least 5 genes in the redox proteomics data. We will plot the sizes of the gene sets.
+
+```{r}
+rat_set_sizes <- lengths(redox_GN_gene_sets)
+hist(rat_set_sizes, breaks = 30)
+```
+
+For each gene set, we calculate the ratio of the number of rat genes in the redox proteomics data to the original number of human genes. This gives us a measure of confidence for the set descriptions. That is, if the ratio is low, it is unlikely that what is being tested is correctly described by the set name.
+
+```{r}
+r <- rat_set_sizes / lengths(human_gene_sets)[names(rat_set_sizes)]
+hist(r, breaks = seq(0, 1, 0.05))
+```
+
+```{r}
+plot(rat_set_sizes, r, log = "x")
+abline(h = 1, col = "red")
+```
+
+```{r}
+# Minimum ratio for top 90% of gene sets
+(q <- quantile(r, probs = 1 - 0.9)) # 0.1601527
+```
+
+The top 90% of sets retain at least `r round(100 * q, 1)`% of their original genes.
+
+```{r}
+# How much of the background do the gene sets cover? 0.9496823
+(coverage <- length(unique(unlist(redox_GN_gene_sets))) / length(background))
+```
+
+The gene sets cover about `r round(coverage * 100, 1)`% of the unique genes in the redox proteomics data.
+
+
+## Cluster Gene Sets
+
+We will now try to reduce the redundancy of the sets. First, we will identify clusters of highly similar sets based on their Jaccard coefficients. Within each cluster, we will keep the largest set. Ties will be broken by selecting the set that was most similar to its human counterpart (ratio closest to 1), then the set with the shortest description, and finally according to alphanumeric order.
+
+```{r}
+redox_cluster_df <- cluster_sets(redox_GN_gene_sets) %>% 
+  mutate(ratio = r[set],
+         diff = abs(1 - ratio),
+         n_char = nchar(set)) %>% 
+  arrange(cluster, desc(set_size), diff, n_char, set)
+
+# Show first few clusters with multiple gene sets
+filter(redox_cluster_df, cluster <= 5L)
+```
+
+Now, we will take all the clusters with at least 2 sets and provide them as a separate table. In this table, we will have columns for the primary set kept for the analysis (`Set`), sets that appeared in the same cluster and were discarded (`SimilarSets`), the pairwise Jaccard coefficients (`JaccardCoef`), the pairwise overlap coefficients (`OverlapCoef`), and a unique ID for each set in `Sets` (`SetID`) that can be used to quickly cross-reference the FGSEA results. It is also useful for shortening the set descriptions for plotting while ensuring they are unique.
+
+```{r}
+# Sets that were clustered together
+jaccard_sets <- redox_cluster_df %>% 
+  filter(n() > 1L, .by = cluster) %>% 
+  pull(set)
+
+# Jaccard similarity matrix
+jaccard <- similarity(redox_GN_gene_sets[jaccard_sets]) %>% 
+  as.matrix()
+
+# Overlap similarity matrix
+overlap <- similarity(redox_GN_gene_sets[jaccard_sets], 
+                      type = "overlap") %>% 
+  as.matrix()
+
+REDOX_GN_REDUNDANT_SETS <- redox_cluster_df %>% 
+  mutate(type = ifelse(duplicated(cluster), 
+                       "SimilarGeneSets", "GeneSet")) %>% 
+  tidyr::pivot_wider(id_cols = cluster,
+                     names_from = type, 
+                     values_from = set,
+                     values_fn = list,
+                     values_fill = list(character(0L))) %>% 
+  select(-cluster) %>%
+  tidyr::unnest(cols = c(GeneSet, SimilarGeneSets)) %>% 
+  mutate(
+    JaccardCoef = sapply(seq_len(n()), function(i) {
+      jaccard[GeneSet[i], SimilarGeneSets[i]]
+    }),
+    OverlapCoef = sapply(seq_len(n()), function(i) {
+      overlap[GeneSet[i], SimilarGeneSets[i]]
+    }),
+    across(.cols = ends_with("Coef"), 
+           .fns = ~ round(.x, digits = 3))
+  ) %>%
+  left_join(select(SET_TO_ID, GeneSetID, GeneSet), by = "GeneSet") %>% 
+  arrange(GeneSetID, -JaccardCoef, -OverlapCoef, SimilarGeneSets) %>% 
+  relocate(GeneSetID, .before = GeneSet) %>% 
+  as.data.frame()
+
+head(REDOX_GN_REDUNDANT_SETS)
+```
+
+Now, we can discard all but the first set from each cluster.
+
+```{r}
+# Select first set in each cluster (clusters were previously sorted)
+redox_filtered_sets <- 
+  redox_cluster_df[!duplicated(redox_cluster_df$cluster), "set"]
+length(redox_filtered_sets) # 5015 sets
+
+# Filter gene sets
+redox_GN_gene_sets <- redox_GN_gene_sets[redox_filtered_sets]
+```
+
+Only `r length(redox_GN_gene_sets)` sets remain for testing. We will check if clustering impacted the coverage.
+
+```{r}
+# How much of the background do the gene sets cover after reducing redundancy?
+# 0.9496823
+(coverage <- length(unique(unlist(redox_GN_gene_sets))) / length(background))
+```
+
+The gene sets cover about `r round(coverage * 100, 1)`% of the unique genes in the redox proteomics data. The redundancy of the gene sets was reduced without impacting the coverage.
+
+
+
+# Gene Set Testing
+
+For each contrast and gene symbol pairing, we will keep the most extreme z-score. This will be our input for FGSEA and CAMERA.
+
+```{r}
+# Collapse DA results to gene level
+redox_GN_stats <- lapply(REDOX_GN_DA, function(x) {
+  x %>% 
+    # If genes are missing, use the protein ID
+    mutate(featureID = ifelse(is.na(gene_symbol), 
+                              sub("([A-Z]P_[^_]+).*", "\\1", featureName),
+                              gene_symbol)) %>% 
+    select(contrast, featureID, z) %>% 
+    # Faster `slice_max(order_by = -abs(z))`
+    arrange(contrast, featureID, -abs(z)) %>% 
+    filter(!duplicated(featureID), .by = contrast) %>% 
+    tidyr::pivot_wider(id_cols = featureID, 
+                       names_from = contrast, 
+                       values_from = z) %>% 
+    as.data.frame() %>% 
+    `rownames<-`(.$featureID) %>% 
+    select(-featureID) %>% 
+    as.matrix()
+})
+
+# How much is the data collapsed? To about 32% of original
+sapply(redox_GN_stats, nrow) / nrow(REDOX_GN)
+
+# Proportion of duplicates (affects FGSEA)
+vapply(redox_GN_stats, function(x) mean(duplicated(x)), numeric(1L))
+```
+
+
+## FGSEA
+
+We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
+
+```{r eval=FALSE, message=FALSE, warning=FALSE}
+REDOX_GN_FGSEA <- lapply(redox_GN_stats, function(x) {
+  lapply(colnames(x), function(contrast_i) {
+    
+    stats_i <- na.omit(x[, contrast_i])
+    
+    set.seed(9001)
+    
+    fgsea(
+      pathways = redox_GN_gene_sets, 
+      stats = stats_i,
+      # precision of p-values
+      eps = 0, 
+      nproc = 4,
+      # Number of permutations. Affects precision of NES and p-values.
+      nPermSimple = 1e4
+    ) %>% 
+      mutate(Contrast = contrast_i)
+  }) %>% 
+    bind_rows() %>% 
+    rename(GeneSet = pathway, NGenesRat = size, 
+           PValue = pval, PAdj = padj, 
+           LeadingEdge = leadingEdge) %>% 
+    # Include GeneSetID, NGenesHuman columns
+    left_join(SET_TO_ID, by = "GeneSet") %>% 
+    mutate(
+      Contrast = factor(Contrast, levels = unique(Contrast)),
+      Direction = ifelse(NES >= 0, "Up", "Down"),
+      PAdj = p.adjust(PValue, method = "BH"),
+      # NRatio is a measure of confidence that the set being tested is what is
+      # described by GeneSet
+      NRatio = round(NGenesRat / NGenesHuman, digits = 3),
+      Direction = factor(Direction, levels = c("Up", "Down"))
+    ) %>% 
+    # Reorder columns
+    select(Contrast, GeneSetID, GeneSet, GeneSetShort,
+           NGenesRat, NGenesHuman, NRatio, 
+           Direction, NES, 
+           PValue, PAdj, LeadingEdge) %>% 
+    arrange(Contrast, PValue, NES)
+})
+```
+
+```{r}
+# Count number of significant gene sets
+lapply(REDOX_GN_FGSEA, function(x) with(x, table(Contrast, PAdj < 0.05)))
+```
+
+```{r}
+# Format of results
+head(REDOX_GN_FGSEA$trained_vs_SED)
+```
+
+
+## CAMERA
+
+We will also perform Correlation Adjusted MEan RAnk gene set testing (CAMERA) with `TMSig::cameraPR.matrix`, a fast matrix method for `limma::cameraPR`.
+
+```{r eval=FALSE, message=FALSE}
+# CAMERA (pre-ranked)
+REDOX_GN_CAMERA <- lapply(redox_GN_stats, function(x) {
+  cameraPR(statistic = x, 
+           index = redox_GN_gene_sets,
+           adjust.globally = TRUE) %>% 
+    rename(NGenesRat = NGenes, PAdj = FDR) %>% 
+    # Include GeneSetID, NGenesHuman columns
+    left_join(SET_TO_ID, by = "GeneSet") %>% 
+    mutate(
+      ZScore = zscoreT(TwoSampleT, df = df, method = "hill"),
+      # NRatio is a measure of confidence that the set being tested is what is
+      # described by GeneSet
+      NRatio = round(NGenesRat / NGenesHuman, digits = 3),
+      Direction = factor(Direction, levels = c("Up", "Down"))
+    ) %>%
+    # Reorder columns
+    select(Contrast, GeneSetID, GeneSet, GeneSetShort, 
+           NGenesRat, NGenesHuman, NRatio, 
+           Direction, TwoSampleT, df, ZScore, PValue, PAdj)
+})
+```
+
+```{r}
+# Count number of significant gene sets
+lapply(REDOX_GN_CAMERA, function(x) with(x, table(Contrast, PAdj < 0.05)))
+```
+
+```{r}
+# Format of results
+head(REDOX_GN_CAMERA$trained_vs_SED)
+```
+
+```{r eval=FALSE}
+# Save results
+usethis::use_data(redox_GN_gene_sets, overwrite = TRUE, version = 3)
+usethis::use_data(REDOX_GN_REDUNDANT_SETS, overwrite = TRUE, version = 3)
+usethis::use_data(REDOX_GN_FGSEA, overwrite = TRUE, version = 3)
+usethis::use_data(REDOX_GN_CAMERA, overwrite = TRUE, version = 3)
+```
+
+
+# Session Info
+
+```{r}
+sI <- sessionInfo()
+print(sI, locale = FALSE)
+```

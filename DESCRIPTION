@@ -1,0 +1,47 @@
+Package: MotrpacRatTraining6moMuscleData
+Type: Package
+Title: Analysis of MoTrPAC Rat Skeletal Muscle -Omics Data
+Version: 0.1.0.9000
+Authors@R: 
+    person(given = "Tyler", family = "Sagendorf", 
+           email = "tyler.sagendorf@pnnl.gov",
+           comment = c(ORCID = "0000-0003-1552-4870"),
+           role = c("aut", "cre"))
+Description: An R package containing data and analysis results of MoTrPAC PASS1B 
+    skeletal muscle (gastrocnemius and vastus lateralis) taken from rats that 
+    were either sedentary (SED) for 8 weeks or were treadmill trained for 1 week 
+    (1W), 2W, 4W, or 8W. Rats were approximately 6 months old at the start of 
+    the training protocol.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+LazyDataCompression: gzip
+Depends: 
+    R (>= 3.6.0)
+Imports:
+    stats
+Suggests:
+    Biobase,
+    biomaRt,
+    ComplexHeatmap,
+    dplyr,
+    edgeR,
+    fgsea,
+    ggplot2,
+    grid,
+    knitr,
+    limma,
+    MotrpacRatTraining6moData (>= 1.9.1),
+    MotrpacRatTraining6moWAT (>= 1.0.1),
+    purrr,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    tidyr,
+    TMSig (>= 1.0.0)
+Remotes:
+    github::MoTrPAC/MotrpacRatTraining6moData
+    github::MoTrPAC/MotrpacRatTraining6moWAT
+    github::EMSL-Computing/TMSig
+VignetteBuilder: knitr
+RoxygenNote: 7.3.1
+Roxygen: list(markdown = TRUE)

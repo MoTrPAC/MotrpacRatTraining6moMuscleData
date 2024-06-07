@@ -1,0 +1,191 @@
+---
+title: "Gastrocnemius Metabolomics RefMet Subclass Testing"
+author: "Tyler Sagendorf"
+date: "Last compiled `r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmarkdown::html_document:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Gastrocnemius Metabolomics RefMet Subclass Testing}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>", 
+  fig.width = 6, 
+  fig.height = 4
+)
+```
+
+```{r setup, message=FALSE, warning=FALSE}
+# Required packages
+library(Biobase)
+library(dplyr)
+library(fgsea) # fgsea  
+library(MotrpacRatTraining6moMuscleData)
+library(TMSig) # filter_sets
+library(stats)
+```
+
+# Prepare Sets
+
+```{r}
+background <- unique(fData(METAB_GN)$metabolite_refmet)
+length(background) # 1046 metabolites/lipids
+```
+
+```{r}
+metab_GN_refmet_sets <- with(fData(METAB_GN), 
+                             split(metabolite_refmet, sub_class)) %>% 
+  filter_sets(min_size = 5L)
+
+length(metab_GN_refmet_sets) # 27
+```
+
+We will plot the sizes of the RefMet chemical subclass sets.
+
+```{r, fig.height=3, fig.width=5}
+set_sizes <- lengths(metab_GN_refmet_sets)
+hist(set_sizes, breaks = 30)
+```
+
+
+```{r}
+(coverage <- length(unique(unlist(metab_GN_refmet_sets))) /
+   length(background)) # 0.5908222
+```
+
+About `r round(coverage * 100, 1)`% of the metabolites are captured by the RefMet chemical subclass sets.
+
+
+
+# RefMet Chemical Subclass Testing
+
+For each contrast and metabolite/lipid pairing, we will calculate the mean of the z-scores. This will be our input for FGSEA and CAMERA.
+
+```{r}
+# Collapse redundant metabolites
+metab_GN_stats <- lapply(METAB_GN_DA, function(x) {
+  x %>% 
+    select(contrast, metabolite_refmet, z) %>% 
+    # Faster `slice_max(order_by = abs(z))`
+    arrange(contrast, metabolite_refmet, -abs(z)) %>% 
+    filter(!duplicated(metabolite_refmet), .by = contrast) %>% 
+    tidyr::pivot_wider(id_cols = metabolite_refmet, 
+                       names_from = contrast, 
+                       values_from = z) %>% 
+    as.data.frame() %>% 
+    `rownames<-`(.$metabolite_refmet) %>% 
+    select(-metabolite_refmet) %>% 
+    as.matrix()
+})
+
+# How much is the data collapsed? To about 86% of original
+sapply(metab_GN_stats, nrow) / nrow(METAB_GN)
+
+# Proportion of duplicates (affects FGSEA)
+vapply(metab_GN_stats, function(x) mean(duplicated(x)), numeric(1L))
+```
+
+
+## FGSEA
+
+We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
+
+```{r eval=FALSE, message=FALSE, warning=FALSE}
+METAB_GN_FGSEA <- lapply(metab_GN_stats, function(x) {
+  lapply(colnames(x), function(contrast_i) {
+    
+    stats_i <- na.omit(x[, contrast_i])
+
+    set.seed(9001)
+    
+    fgseaMultilevel(
+      pathways = metab_GN_refmet_sets, 
+      stats = stats_i, 
+      # precision of p-values
+      eps = 0, 
+      nproc = 4,
+      # Number of permutations. Affects precision of NES and p-values.
+      nPermSimple = 1e4
+    ) %>% 
+      mutate(Contrast = contrast_i)
+  }) %>% 
+    bind_rows() %>%
+    rename(Subclass = pathway, NMetabolites = size,
+           PValue = pval, PAdj = padj,
+           LeadingEdge = leadingEdge) %>%
+    mutate(
+      Contrast = factor(Contrast, levels = unique(Contrast)),
+      Direction = ifelse(NES >= 0, "Up", "Down"),
+      # Adjust p-values across related contrasts
+      PAdj = p.adjust(PValue, method = "BH"),
+      Direction = factor(Direction, levels = c("Up", "Down"))
+    ) %>%
+    # Reorder columns
+    select(Contrast, Subclass, NMetabolites,
+           Direction, NES,
+           PValue, PAdj, LeadingEdge) %>%
+    arrange(Contrast, PValue, NES)
+})
+```
+
+```{r}
+# Count number of significant gene sets
+lapply(METAB_GN_FGSEA, function(x) with(x, table(Contrast, PAdj < 0.05)))
+```
+
+```{r}
+# Format of results
+head(METAB_GN_FGSEA$trained_vs_SED)
+```
+
+
+## CAMERA
+
+We will also perform Correlation Adjusted MEan RAnk gene set testing (CAMERA) with `TMSig::cameraPR.matrix`, a fast matrix method for `limma::cameraPR`.
+
+```{r eval=FALSE, message=FALSE}
+# CAMERA (pre-ranked)
+METAB_GN_CAMERA <- lapply(metab_GN_stats, function(x) {
+  cameraPR(statistic = x, 
+           index = metab_GN_refmet_sets, 
+           adjust.globally = TRUE) %>% 
+    rename(Subclass = GeneSet, NMetabolites = NGenes, PAdj = FDR) %>% 
+    mutate(
+      ZScore = zscoreT(TwoSampleT, df = df, method = "hill"),
+      Direction = factor(Direction, levels = c("Up", "Down"))
+    ) %>% 
+    select(Contrast, Subclass, NMetabolites, 
+           Direction, TwoSampleT, df, ZScore, PValue, PAdj)
+})
+```
+
+```{r}
+# Count number of significant subclasses
+lapply(METAB_GN_CAMERA, function(x) with(x, table(Contrast, PAdj < 0.05)))
+```
+
+```{r}
+# Format of results
+head(METAB_GN_CAMERA$trained_vs_SED)
+```
+
+
+```{r eval=FALSE}
+# Save results
+usethis::use_data(metab_GN_refmet_sets, overwrite = TRUE, version = 3)
+usethis::use_data(METAB_GN_FGSEA, overwrite = TRUE, version = 3)
+usethis::use_data(METAB_GN_CAMERA, overwrite = TRUE, version = 3)
+```
+
+
+# Session Info
+
+```{r}
+sI <- sessionInfo()
+print(sI, locale = FALSE)
+```

@@ -1,0 +1,461 @@
+---
+title: "Skeletal Muscle Differential Analysis of -Omics Datasets"
+author: "Tyler Sagendorf"
+date: "Last compiled `r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Skeletal Muscle Differential Analysis of -Omics Datasets}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>", 
+  fig.width = 6, 
+  fig.height = 4,
+  eval = FALSE
+)
+```
+
+```{r setup, message=FALSE, warning=FALSE}
+# Required packages
+library(MotrpacRatTraining6moMuscleData)
+library(limmaTesting) # limmaFit, limmaDEA
+library(Biobase)
+library(dplyr)
+library(ggplot2)
+```
+
+We will test two types of contrasts: sex-matched trained vs. sedentary comparisons and male vs. female comparisons at SED and 8W.
+
+```{r}
+# Sex-matched trained vs. sedentary comparisons
+timepoint <- rep(c("1W", "2W", "4W", "8W"), times = 2)
+sex <- rep(c("F", "M"), each = 4)
+contrasts <- sprintf("exp_group%s_%s - exp_group%s_SED", 
+                     sex, timepoint, sex)
+
+# Include sex comparisons
+contrasts <- c(contrasts, 
+               "exp_groupM_SED - exp_groupF_SED", 
+               "exp_groupM_8W - exp_groupF_8W")
+
+contrasts
+```
+
+```{r}
+# Split DA results by contrast type (trained vs. SED, male vs. female) and
+# adjust p-values.
+split_by_type <- function(x) {
+  x %>% 
+    as.data.frame() %>% 
+    filter(!is.na(logFC)) %>% 
+    mutate(
+      # Simplify contrast names
+      contrast = gsub("exp_group", "", contrast),
+      # Z-score
+      z = zscoreT(t, df = df.total, method = "hill")
+    ) %>%
+    # Create indicator column
+    mutate(group = ifelse(grepl("M.*F", contrast), 
+                          "MvF", "trained_vs_SED"),
+           # Convert to factor to preserve order when splitting
+           group = factor(group, levels = c("trained_vs_SED", "MvF"))) %>% 
+    relocate(z, .after = df.total) %>% 
+    # Split results into a list of 2 tables
+    split(f = .[["group"]]) %>%
+    # For each table, adjust p-values across related contrasts
+    lapply(function(xi) {
+      xi %>%
+        droplevels.data.frame() %>% 
+        # Adjust p-values across sets of related contrasts
+        mutate(adj.P.Val = p.adjust(P.Value, method = "BH"),
+               contrast = factor(contrast, levels = unique(contrast))) %>%
+        # Limit columns in output
+        select(any_of(c("contrast", "featureName", 
+                        "metabolite_refmet", "standardized_name",
+                        "dataset", "is_targeted", "sub_class",
+                        "description", "gene_symbol", 
+                        "entrez_id", "uniprot_gn_id", "rgd_id",
+                        "logFC", "AveExpr", "t", "df.total", 
+                        "z", "P.Value", "adj.P.Val"))) %>% 
+        # Reduce digits in numeric columns (excluding z)
+        mutate(t = round(t, digits = 3),
+               across(.cols = c(AveExpr, logFC, df.total),
+                      .fns = ~ round(.x, digits = 2)),
+               across(.cols = c(P.Value, adj.P.Val),
+                      .fns = ~ signif(.x, digits = 2)))
+    })
+}
+```
+
+
+# Gastrocnemius
+
+## Global Proteomics
+
+```{r}
+# Create MArrayLM fitted object
+PROT_GN_FIT <- limmaFit(object = PROT_GN,
+                        model.str = "~ 0 + exp_group",
+                        contrasts = contrasts, 
+                        # Robust mean-variance trend
+                        trend = TRUE, robust = TRUE, 
+                        # Sample-level quality weights
+                        var.group = "viallabel",
+                        plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+PROT_GN_DA <- limmaDEA(fit = PROT_GN_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(PROT_GN_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential proteins
+lapply(PROT_GN_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+
+## Phosphoproteomics
+
+```{r}
+# Create MArrayLM fitted object
+PHOSPHO_GN_FIT <- limmaFit(object = PHOSPHO_GN,
+                           model.str = "~ 0 + exp_group",
+                           contrasts = contrasts, 
+                           # Robust mean-variance trend
+                           trend = TRUE, robust = TRUE, 
+                           # Sample-level quality weights
+                           var.group = "viallabel",
+                           plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+PHOSPHO_GN_DA <- limmaDEA(fit = PHOSPHO_GN_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(PHOSPHO_GN_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential phosphosites
+lapply(PHOSPHO_GN_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+
+## Acetyl-proteomics
+
+```{r}
+# Create MArrayLM fitted object
+ACETYL_GN_FIT <- limmaFit(object = ACETYL_GN,
+                          model.str = "~ 0 + exp_group",
+                          contrasts = contrasts, 
+                          # Robust mean-variance trend
+                          trend = TRUE, robust = TRUE, 
+                          # Sample-level quality weights
+                          var.group = "viallabel",
+                          plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+ACETYL_GN_DA <- limmaDEA(fit = ACETYL_GN_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(ACETYL_GN_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential phosphosites
+lapply(ACETYL_GN_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+
+## Redox Proteomics
+
+```{r}
+# Create MArrayLM fitted object
+REDOX_GN_FIT <- limmaFit(object = REDOX_GN,
+                         model.str = "~ 0 + exp_group",
+                         contrasts = contrasts, 
+                         # Robust mean-variance trend
+                         trend = TRUE, robust = TRUE, 
+                         # Sample-level quality weights
+                         var.group = "viallabel",
+                         plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+REDOX_GN_DA <- limmaDEA(fit = REDOX_GN_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(REDOX_GN_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential phosphosites
+lapply(REDOX_GN_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+```{r}
+# Include column for differential change in global protein abundance
+f1 <- function(x) {
+  mutate(x, protein_id = sub("([A-Z]P_[^_]+).*", "\\1", featureName)) %>%
+    left_join(foo, by = c("contrast", "protein_id" = "featureName")) %>%
+    select(-protein_id)
+}
+
+for (name_i in names(PROT_GN_DA)) {
+  foo <- PROT_GN_DA[[name_i]] %>%
+    mutate(signif_protein = adj.P.Val < 0.05) %>%
+    select(contrast, featureName, signif_protein)
+
+  PHOSPHO_GN_DA[[name_i]] <- f1(PHOSPHO_GN_DA[[name_i]])
+  
+  ACETYL_GN_DA[[name_i]] <- f1(ACETYL_GN_DA[[name_i]])
+  
+  REDOX_GN_DA[[name_i]] <- f1(REDOX_GN_DA[[name_i]])
+}
+```
+
+
+## Transcriptomics
+
+```{r}
+# Model includes covariates
+model.str <- paste("~ 0 + exp_group", "rin", "pct_globin",
+                   "pct_umi_dup", "median_5_3_bias", sep = " + ")
+
+TRNSCRPT_GN_FIT <- limmaFit(object = TRNSCRPT_GN, 
+                            model.str = model.str,
+                            contrasts = contrasts, 
+                            # Robust prior variance
+                            trend = FALSE, robust = TRUE,
+                            # Sample-level quality weights
+                            var.group = "viallabel",
+                            plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+TRNSCRPT_GN_DA <- limmaDEA(fit = TRNSCRPT_GN_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(TRNSCRPT_GN_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential transcripts
+lapply(TRNSCRPT_GN_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+
+## Metabolomics
+
+```{r}
+METAB_GN_FIT <- limmaFit(object = METAB_GN, 
+                         model.str = "~ 0 + exp_group",
+                         contrasts = contrasts, 
+                         # Robust mean-variance trend
+                         trend = TRUE, robust = TRUE, 
+                         # Sample-level quality weights
+                         var.group = "pid",
+                         plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+METAB_GN_DA <- limmaDEA(fit = METAB_GN_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(METAB_GN_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential metabolites
+lapply(METAB_GN_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+
+## ATAC-Seq
+
+Differential analysis of ATAC-Seq data is performed in data-raw/ATAC_GN.R, so only a snippet is provided below. The analysis is identical to that of RNA-Seq, though the covariates are different. Only those features with adjusted p-values < 0.05 are provided, as there were 856,947 total features tested.
+
+```{r eval=FALSE}
+## Not run
+model.str <- paste("~ 0 + exp_group", "Sample_batch", 
+                   "peak_enrich.frac_reads_in_peaks.macs2.frip",
+                   sep = " + ")
+
+ATAC_GN_FIT <- limmaFit(object = ATAC_GN,
+                        model.str = model.str,
+                        contrasts = contrasts,
+                        # Robust prior variance
+                        trend = FALSE, robust = TRUE,
+                        # Sample-level quality weights
+                        var.group = "viallabel",
+                        plot = TRUE)
+```
+
+```{r eval=FALSE}
+lapply(ATAC_GN_DA_05FDR, 
+       function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+
+
+# Vastus Lateralis
+
+## Transcriptomics
+
+```{r}
+# Model includes covariates
+model.str <- paste("~ 0 + exp_group", "rin", "pct_globin",
+                   "pct_umi_dup", "median_5_3_bias", sep = " + ")
+
+TRNSCRPT_VL_FIT <- limmaFit(object = TRNSCRPT_VL, 
+                            model.str = model.str,
+                            contrasts = contrasts, 
+                            # Robust prior variance
+                            trend = FALSE, robust = TRUE, 
+                            # Sample-level quality weights
+                            var.group = "viallabel",
+                            plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+TRNSCRPT_VL_DA <- limmaDEA(fit = TRNSCRPT_VL_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(TRNSCRPT_VL_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential transcripts
+lapply(TRNSCRPT_VL_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+
+## Metabolomics
+
+```{r}
+METAB_VL_FIT <- limmaFit(object = METAB_VL, 
+                         model.str = "~ 0 + exp_group",
+                         contrasts = contrasts, 
+                         # Robust mean-variance trend
+                         trend = TRUE, robust = TRUE, 
+                         # Sample-level quality weights
+                         var.group = "pid",
+                         plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+METAB_VL_DA <- limmaDEA(fit = METAB_VL_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(METAB_VL_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential metabolites
+lapply(METAB_VL_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+
+# Save Results
+
+```{r eval=FALSE}
+# Save
+usethis::use_data(PROT_GN_DA, overwrite = TRUE, version = 3)
+usethis::use_data(PHOSPHO_GN_DA, overwrite = TRUE, version = 3)
+usethis::use_data(ACETYL_GN_DA, overwrite = TRUE, version = 3)
+usethis::use_data(REDOX_GN_DA, overwrite = TRUE, version = 3)
+usethis::use_data(TRNSCRPT_GN_DA, overwrite = TRUE, version = 3)
+usethis::use_data(METAB_GN_DA, overwrite = TRUE, version = 3)
+
+usethis::use_data(TRNSCRPT_VL_DA, overwrite = TRUE, version = 3)
+usethis::use_data(METAB_VL_DA, overwrite = TRUE, version = 3)
+```
+
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
