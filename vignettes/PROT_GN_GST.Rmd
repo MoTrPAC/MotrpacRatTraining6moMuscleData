@@ -6,17 +6,17 @@ output:
   rmarkdown::html_vignette:
     toc: true
 vignette: >
-  %\VignetteIndexEntry{SKMGN Proteomics Gene Set Testing}
+%\VignetteIndexEntry{SKMGN Proteomics Gene Set Testing}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
----
+  ---
   
-```{r, include = FALSE}
+  ```{r, include = FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>", 
-  fig.width = 6, 
-  fig.height = 4
+collapse = TRUE,
+comment = "#>", 
+fig.width = 6, 
+fig.height = 4
 )
 ```
 
@@ -48,10 +48,10 @@ length(background) # 5932
 ```
 
 ```{r}
-prot_GN_gene_sets <- filter_sets(rat_gene_sets, 
-                                 background = background, 
-                                 min_size = 5L, 
-                                 max_size = length(background) - 1L)
+prot_GN_gene_sets <- filterSets(rat_gene_sets, 
+                                background = background, 
+                                min_size = 5L, 
+                                max_size = length(background) - 1L)
 length(rat_gene_sets) # 9293
 length(prot_GN_gene_sets) # 6317
 ```

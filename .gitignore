@@ -6,3 +6,5 @@ plots
 /data-raw
 .Rproj.user
 vignettes/articles
+.DS_Store
+*.zip
