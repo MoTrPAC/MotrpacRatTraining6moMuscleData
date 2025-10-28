@@ -1,9 +1,7 @@
 inst/doc
 sandbox
-plots
 /doc/
 /Meta/
-/data-raw
 .Rproj.user
 vignettes/articles
 .DS_Store

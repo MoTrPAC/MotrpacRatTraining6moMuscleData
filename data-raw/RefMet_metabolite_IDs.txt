@@ -1,0 +1,1253 @@
+1-Methylhistidine
+1-Methyladenosine
+1-Methylhistamine
+1-Methyl nicotinamide
+11,12-DiHETrE
+11,12-EpETrE
+12-HETE
+13-HODE
+13-HpODE
+13-Oxo-ODE
+13S-HOTrE(gamma)
+14,15-DiHETrE
+14,15-EpETrE
+Deoxyadenosine
+Deoxycytidine
+2-Hydroxyglutaric acid
+2-Acetylpyrrolidine
+Aminoisobutyric acid
+2-Deoxy-glucose
+2-Hydroxybutyric acid
+Phosphoglyceric acid
+2-Piperidinone
+20-HETE
+21-Deoxycortisol
+Protocatechuic acid
+3-(1-pyrazolyl)-alanine
+3-Methylhistidine
+3-Hydroxybutyric acid
+3-Hydroxyphenyl valeric acid
+3-Indolepropionic acid
+3-Methyl-2-oxovaleric acid
+4-Guanidinobutanoic acid
+4-Pyridoxic acid
+5'-Methylthioadenosine
+5,6-DiHETrE
+5-HETE
+5-Hydroxytryptophol
+5-Methylcytidine
+5-Methylcytosine
+6-Phosphogluconic acid
+7-Methylguanine
+8,9-DiHETrE
+8,9-EpETrE
+9,10-DiHOME
+9-HETE
+9-HODE
+9-HOTrE
+9S-HpODE
+Dimethylarginine
+ADP
+AMP
+ATP
+Alanine
+Anserine
+Arachidonoyl-EA
+Arginine
+Asparagine
+Aspartic acid
+Behenoyl-EA
+C-Glycosyltryptophan
+CAR(10:0)
+CAR(12:0)
+CAR(12:1)
+CAR(14:0)
+LPC(14:0)
+SM(d18:1/14:0)
+CAR(14:1)
+CAR(14:2)
+CAR(16:0)
+CAR(16:0(OH))
+Cer(d18:1/16:0)
+LPC(0:0/16:0)
+LPE(16:0)
+SM(d18:1/16:0)
+LPC(16:1)
+LPC(P-16:0)/LPC(O-16:1)
+LPE(16:1)
+SM(d18:1/16:1)
+CAR(18:0)
+LPC(18:0)
+LPE(18:0)_hp_a
+LPE(18:0)_hp_b
+SM(d18:1/18:0)
+LPC(18:1)
+LPC(P-18:0)/LPC(O-18:1)_hp_a
+LPC(P-18:0)/LPC(O-18:1)_hp_b
+LPE(18:1)
+SM(d18:1/18:1)
+CAR(18:1)
+CAR(18:1(OH))
+LPC(0:0/18:2)
+LPE(18:2)
+CAR(18:2)
+LPC(18:3)
+LPE(18:3)
+CAR(2:0)
+CAR(20:0)
+LPE(20:0)
+SM(d18:1/20:0)
+LPC(20:1)
+LPC(20:3)
+LPC(20:4)_hp_a
+LPC(20:4)_hp_b
+LPE(20:4)
+CAR(20:4)
+LPC(20:5)
+SM(d18:1/22:0)
+LPC(22:4)
+LPC(22:5)
+LPC(22:6)
+LPE(22:6)
+LPC(24:0)
+Cer(d18:0/24:1)
+CAR(26:0)
+CAR(3:0)
+CAR(DC3:0)
+CAR(DC3:0(2Me))
+PC(30:0)
+PC(32:2)
+PE(34:0)
+PE(34:2)
+PE(P-34:1)/PE(O-34:2)
+PC(34:3)
+PC(P-34:2)/PC(O-34:3)
+PE(P-34:2)/PE(O-34:3)
+PC(34:4)
+PC(36:2)
+PE(36:2)
+PS(P-36:1)/PS(O-36:2)
+PE(P-36:2)/PE(O-36:3)
+PE(36:4)
+PC(P-36:4)/PC(O-36:5)
+PE(P-36:4)/PE(O-36:5)
+PE(38:4)
+PE(P-38:4)/PE(O-38:5)
+PC(P-38:5)/PC(O-38:6)
+PE(38:6)
+PE(P-38:5)/PE(O-38:6)
+PC(P-38:6)/PC(O-38:7)
+PE(P-38:6)/PE(O-38:7)
+CAR(4:0)
+CAR(4:0(OH))
+PE(40:6)
+PE(P-40:6)/PE(O-40:7)
+CAR(5:0)
+CAR(5:1)
+CAR(6:0)
+CAR(7:0)
+CAR(8:0)
+CE(18:1)
+CE(18:2)
+CE(20:2)
+CE(20:4)_lp_a
+CE(20:5)
+CE(22:6)_lp_a
+CL(72:8)
+CMP
+CAR(10:0(OH))
+CAR(10:1)
+CAR(11:0)
+CAR(12:0)_lp_a
+CAR(12:0)_lp_b
+CAR(14:1(OH))
+CAR(16:1)
+CAR(16:1)_lp_a
+CAR(16:1)_lp_b
+CAR(16:2)
+CAR(16:3)
+CAR(17:0)_lp_b
+CAR(18:0(OH))
+CAR(18:1)_lp_a
+CAR(18:2)_lp_a
+CAR(19:0)
+CAR(20:1)
+CAR(20:2)_lp_a
+CAR(21:2)
+CAR(22:4)
+CAR(24:0)
+CAR(24:1)
+CAR(4:0)_rp_a
+CAR(4:0)_rp_b
+CAR(5:0)_rp_a
+CAR(5:0)_rp_b
+CAR(5:0(OH))
+CAR(8:0(OH))
+CAR(8:1)
+CAR(9:0)
+Carnosine
+Cer(d18:0/16:0)
+Cer(d34:1)
+Cer(d18:1/18:0)
+Cer(d38:1)
+Cer(d18:0/22:0)
+Cer(d18:1/22:0)_lp_b
+Cer(d40:1)_ln_b
+Cer(d18:2/22:0)_lp_b
+Cer(d40:2)_ln_b
+Cer(d18:1/23:0)
+Cer(d41:1)
+Cer(d18:2/23:0)_lp_b
+Cer(d18:0/24:0)
+Cer(d42:0)
+Cer(d42:0(OH))
+Cer(d18:0/24:1)_lp_a
+Cer(d18:1/24:0)_lp_c
+Cer(d42:1)_ln_b
+Cer(d42:1)_ln_c
+Cer(d18:1/24:1)_lp_c
+Cer(d18:2/24:0)_lp_d
+Cer(d42:2)_ln_c
+Cer(d42:2)_ln_d
+Cer(d42:3)_lp_b
+Cer(d18:1/25:0)_lp_a
+Cer(d18:1/25:0)_lp_b
+Cer(d44:1)
+Cer(t18:1/24:0)_lp_a
+Cholesterol sulfate
+Citric acid
+Citrulline
+Acetyl-CoA
+Cystathionine
+Cysteine
+DG(18:1_18:1)
+DG(32:0)
+DG(16:0_16:0)_lp_b
+DG(32:1)
+DG(16:0_16:1)
+DG(34:1)
+DG(16:0_18:1)_lp_b
+DG(34:2)
+DG(16:0_18:2)_lp_b
+DG(16:0_18:2)_lp_c
+DG(18:0_18:1)_lp_b
+DG(18:0_18:2_0:0)_lp_c
+DG(18:0_18:2_0:0)_lp_d
+DG(36:3)
+DG(18:1_18:2)_lp_c
+DG(16:0_20:4)_lp_b
+DG(36:4)_lp_a
+DG(38:4)_lp_d
+DG(18:0_20:4)_lp_f
+DG(18:1_20:4)_lp_b
+DG(18:2_20:4)_lp_a
+DG(18:0_22:4_0:0)_lp_c
+DG(18:0_22:6_0:0)_lp_f
+Docosahexenoyl-EA
+Docosatetraenoyl-EA
+EA(15:0)
+EA(17:0)
+Stearoyl-EA
+Ethanolamine
+Sebacic acid
+Hydroxydecanoic acid
+Undecanedioic acid
+Lauric acid
+Aminododecanoic acid
+Hydroxydodecanoic acid
+Dodecenoic acid
+Myristic acid
+Hydroxytetradecanoic acid
+Myristoleic acid
+Tetradecadienoic acid
+Pentadecylic acid
+Palmitic acid
+Heptadecanedioic acid
+Hydroxyhexadecanoic acid
+Palmitoleic acid
+Margaric acid
+Stearic acid
+Oleic acid
+Octadecadienoic acid
+Octadecatrienoic acid
+Octadecatetraenoic acid
+Nonadecenoic acid
+Arachidic acid
+Eicosenoic acid
+Eicosadienoic acid
+Eicosatrienoic acid
+Eicosatetraenoic acid
+EPA
+Behenic acid
+Docosatrienoic acid
+Docosatetraenoic acid
+Docosapentaenoic acid
+DHA
+Lignoceric acid
+Tetracosenoic acid
+Suberic acid
+Hydroxyoctanoic acid
+Azelaic acid
+FAD
+Fumaric acid
+gamma-Aminobutyric acid
+GDP
+GMP
+TG(50:2)_lp_b
+GTP
+Ganglioside GM3(d42:1)
+Glu-Phe
+Glutamic acid
+Glutamine
+Glycine
+HexCer(d18:0/24:0-OH)
+HexCer(d34:1)
+HexCer(d36:1)
+HexCer(d38:1)
+HexCer(d40:1)_lp_c
+HexCer(d40:1)_ln_b
+HexCer(d42:1)_lp_b
+HexCer(d42:1)_ln_b
+HexCer(d42:2)_ln_c
+Histidine
+5-Hydroxylysine
+Hydroxyproline
+IMP
+Ile-Pro
+Ile-Val
+Inosine
+Isocitric acid
+Isoleucine
+Oxoglutaric acid
+Glu-Lys
+LPC(15:0)
+LPC(15:0)_lp_ab
+LPC(16:0/0:0)_ln_b
+LPC(16:0/0:0)_lp_b
+LPC(16:0)
+LPC(16:0)_rp_b
+TG(51:1)_lp_c
+LPC(16:1)_lp_ab
+LPC(17:0/0:0)_ln_ab
+LPC(17:0)_lp_ab
+LPC(17:0)
+LPC(18:0/0:0)_ln_b
+LPC(18:0/0:0)_lp_b
+LPC(18:1/0:0)_ln_b
+LPC(18:1/0:0)_lp_b
+LPC(18:1)_rp_b
+LPC(18:2)_ln_ab
+LPC(18:2/0:0)_lp_ab
+LPC(18:2)
+LPC(18:2)_rp_b
+LPC(19:0)_lp_a
+LPC(19:0)_lp_b
+LPC(20:0)
+LPC(20:0/0:0)_lp_ab
+LPC(20:1)_lp_ab
+LPC(20:3)_rp_b
+LPC(20:4/0:0)_ln_b
+LPC(20:4)_lp_ab
+LPC(20:4)
+LPC(20:4)_rp_b
+LPC(22:0)_lp_b
+LPC(22:1)_lp_ab
+LPC(22:6)_lp_ab
+LPC(24:0/0:0)_lp_b
+LPC(24:1)_lp_b
+LPC(26:0)_lp_ab
+LPE(16:0/0:0)_ln_b
+LPE(16:0/0:0)_lp_b
+LPE(18:0)_lp_ab
+LPE(18:0/0:0)_ln_b
+LPE(18:0)_rp_b
+LPE(18:2)_rp_b
+LPE(20:0/0:0)_ln_b
+LPE(O-15:0)
+LPE(O-18:0)
+LPE(O-18:2)
+LTB4
+Lactic acid
+Leu-Ile
+Leu-Pro
+Leucine
+Linoleoyl-EA
+Lysine
+MG(14:0)
+MG(16:0)
+MG(18:1)
+MG(18:1)_rp_b
+Malic acid
+Methionine
+N-Acetyl-D-glucosamine 1-phosphate
+N-Acetylaspartic acid
+N-Acetylglutamine
+N-Acetylhistamine
+N-Acetylhistidine
+N-Acetylleucine
+N-Acetylmethionine
+N-Acetylornithine
+N-Acetylphenylalanine
+N-Acetylputrescine
+N-Acetylserotonin
+N-Acetyl-D-tryptophan
+N-Acetylarginine
+Ureidopropionic acid
+N-Lauroylglycine
+N-Methyl-D-aspartic acid
+N-Methyl-proline
+N-Undecanoylglycine
+N1-Acetylspermidine
+N1-Methyl-2-pyridone-5-carboxamide
+N4-Acetylcytidine
+N-6-Trimethyllysine
+N(6),N(6)-Dimethyl-lysine
+N6-Acetyllysine
+N(6)-Methyllysine
+NAD+
+NADH
+NADP+
+NADPH
+Targinine
+Oleoyl-EA
+Ornithine
+PA(34:1)_lp_b
+PC(28:0)
+PC(30:0)_ln_a
+PC(30:0)_lp_a
+PC(30:1)_lp_a
+PC(31:0)_lp_b
+PC(31:1)_lp_a
+PC(31:1)_lp_c
+PC(32:0)
+PC(32:0)_ln_b
+PC(32:0)_lp_a
+PC(32:0)_lp_b
+PC(32:1)
+PC(32:1)_ln_b
+PC(32:1)_lp_b
+PC(32:1)_lp_c
+PC(14:0_18:2)_ln_a
+PC(32:2)_lp_a
+PC(32:2)_lp_c
+PC(32:3)_lp_a
+PC(32:3)_lp_b
+PC(33:0)_lp_b
+PC(33:0)_lp_c
+PC(33:1)_lp_a
+PC(33:1)_lp_b
+PC(33:2)
+PC(33:3)_lp_b
+PC(33:3)_lp_e
+PC(16:0/18:0)_ln_c
+PC(34:0)_lp_c
+PC(34:1)
+PC(16:0_18:1)_ln_b
+PC(34:1)_lp_b
+PC(34:2)
+PC(16:0_18:2)_ln_a
+PC(34:2)_lp_a
+PC(34:2)_lp_b
+PC(16:0_18:3)_ln_c
+PC(16:1_18:2)_ln_b
+PC(34:3)_lp_a
+PC(34:3)_lp_b
+PC(34:3)_lp_c
+PC(14:0_20:4)_ln_b
+PC(14:0_20:4)_ln_c
+PC(34:4)_lp_a
+PC(34:4)_lp_b
+PC(35:0)_lp_b
+PC(35:0)_lp_c
+PC(35:1)_lp_a
+PC(35:1)_lp_b
+PC(17:0_18:2)_ln_b
+PC(35:2)_lp_b
+PC(35:2)_lp_e
+PC(35:3)_lp_a
+PC(35:3)_lp_c
+PC(35:4)_lp_b
+PC(18:0/18:0)_ln_c
+PC(36:0)_lp_c
+PC(36:1)_ln_a
+PC(36:1)_lp_a
+PC(18:0_18:2)_ln_c
+PC(36:2)_lp_b
+PC(36:2)_lp_c
+PC(36:3)
+PC(18:1_18:2)_ln_b
+PC(36:3)_lp_a
+PC(36:3)_lp_b
+PC(36:3)_lp_e
+PC(36:4)
+PC(16:0_20:4)_ln_c
+PC(18:2/18:2)_ln_b
+PC(36:4)_lp_b
+PC(36:4)_lp_c
+PC(36:4)_lp_f
+PC(16:0_20:5)_ln_c
+PC(16:1_20:4)_ln_b
+PC(36:5)_lp_b
+PC(36:5)_lp_c
+PC(36:5)_lp_f
+PC(36:6)_lp_b
+PC(36:6)_lp_c
+PC(37:0)_lp_e
+PC(37:1)_lp_b
+PC(37:1)_lp_c
+PC(37:2)_lp_a
+PC(37:2)_lp_b
+PC(37:3)_lp_a
+PC(37:3)_lp_b
+PC(37:3)_lp_d
+PC(17:0_20:4)_ln_c
+PC(37:4)_lp_c
+PC(37:4)_lp_e
+PC(37:6)_lp_a
+PC(37:6)_lp_d
+PC(38:0)
+PC(38:1)
+PC(18:0_20:2)_ln_d
+PC(38:2)_ln_b
+PC(38:2)_lp_a
+PC(38:2)_lp_d
+PC(38:2)_lp_g
+PC(18:0_20:3)_ln_c
+PC(38:3)_lp_b
+PC(38:3)_lp_c
+PC(38:3)_lp_d
+PC(16:0_22:4)_ln_c
+PC(18:0_20:4)_ln_d
+PC(38:4)_lp_c
+PC(38:4)_lp_d
+PC(16:0_22:5)_ln_e
+PC(38:5)_ln_c
+PC(38:5)_lp_c
+PC(38:5)_lp_e
+PC(38:6)
+PC(38:6)_ln_b
+PC(18:2_20:4)_ln_a
+PC(38:6)_lp_a
+PC(38:6)_lp_b
+PC(38:7)_lp_b
+PC(39:4)_lp_c
+PC(39:4)_lp_d
+PC(39:4)_lp_e
+PC(39:4)_lp_h
+PC(39:5)_lp_c
+PC(39:5)_lp_f
+PC(39:5)_lp_g
+PC(39:5)_lp_h
+PC(39:6)_lp_c
+PC(39:6)_lp_d
+PC(39:6)_lp_h
+PC(40:0)
+PC(18:1_22:0)
+PC(40:1)
+PC(40:2)_ln_a
+PC(40:2)_lp_b
+PC(40:2)_lp_c
+PC(18:0_22:4)_ln_b
+PC(40:4)_lp_a
+PC(40:4)_lp_b
+PC(40:4)_lp_c
+PC(18:0_22:5)_ln_c
+PC(40:5)_lp_a
+PC(40:5)_lp_c
+PC(40:5)_lp_d
+PC(40:6)
+PC(40:6)_lp_c
+PC(40:7)_lp_a
+PC(40:7)_lp_b
+PC(40:7)_lp_c
+PC(40:7)_lp_d
+PC(40:8)
+PC(41:1)
+PC(41:2)_lp_c
+PC(41:3)
+PC(41:6)_lp_c
+PC(42:1)_ln_b
+PC(42:1)_lp_b
+PC(20:4_22:6)
+PC(42:2)_lp_a
+PC(42:2)_lp_b
+PC(42:3)_lp_a
+PC(42:4)_lp_c
+PC(42:4)_lp_e
+PC(42:5)_lp_a
+PC(42:5)_lp_c
+PC(42:5)_lp_f
+PC(42:6)_lp_a
+PC(42:6)_lp_b
+PC(42:6)_lp_c
+PC(42:6)_lp_d
+PC(42:7)_lp_b
+PC(42:7)_lp_d
+PC(42:8)_lp_b
+PC(42:9)_lp_b
+PC(42:9)_lp_c
+PC(44:10)
+PC(44:12)
+PC(44:4)_lp_b
+PC(44:5)_lp_b
+PC(44:8)_lp_b
+PC(46:5)_lp_b
+PC(O-30:0)
+PC(O-31:0)_lp_b
+PC(O-16:0/16:0)
+PC(O-32:0)
+PC(O-32:1)_ln_b
+PC(O-32:1)_lp_a
+PC(O-32:1)_lp_b
+PC(O-32:2)_lp_a
+PC(O-33:0)
+PC(O-33:0)_lp_d
+PC(O-34:0)
+PC(O-18:1/16:0)_ln_b
+PC(O-34:1)_ln_d
+PC(O-34:1)_lp_b
+PC(O-34:1)_lp_d
+PC(O-34:2)_lp_a
+PC(O-34:2)_lp_b
+PC(O-36:0)
+PC(O-36:1)_lp_a
+PC(O-36:1)_lp_b
+PC(O-36:1)_lp_c
+PC(O-36:1)_lp_d
+PC(O-36:2)_lp_b
+PC(O-36:3)_lp_a
+PC(O-36:3)_lp_b
+PC(O-36:3)_lp_c
+PC(O-16:0/20:4)_ln_d
+PC(O-36:4)_lp_a
+PC(O-36:4)_lp_b
+PC(O-36:4)_lp_d
+PC(O-36:5)_ln_e
+PC(O-36:5)_lp_a
+PC(O-36:5)_lp_b
+PC(O-36:5)_lp_e
+PC(O-37:5)_lp_a
+PC(O-37:5)_lp_b
+PC(O-38:2)_lp_d
+PC(O-38:3)_lp_b
+PC(O-38:4)_lp_d
+PC(O-38:4)_lp_f
+PC(O-38:6)_ln_a
+PC(O-38:5)_lp_a
+PC(O-38:5)_lp_b
+PC(O-38:5)_lp_c
+PC(O-38:6)_lp_a
+PC(O-38:6)_lp_b
+PC(O-38:6)_lp_c
+PC(O-38:7)_lp_a
+PC(O-38:7)_lp_b
+PC(O-38:7)_lp_g
+PC(O-40:4)_lp_a
+PC(O-40:4)_lp_b
+PC(O-40:4)_lp_c
+PC(O-40:6)_lp_a
+PC(O-40:6)_lp_c
+PC(O-40:6)_lp_e
+PC(O-40:7)_lp_a
+PC(O-40:7)_lp_c
+PC(O-42:6)_lp_c
+PE(16:0_16:1)
+PE(34:0)_ln_a
+PE(16:0_18:1)_ln_a
+PE(34:1)_lp_a
+PE(16:0_18:2)_ln_b
+PE(34:2)_lp_b
+PE(34:3)_ln_a
+PE(18:0_18:1)_ln_a
+PE(18:0_18:1)_ln_c
+PE(36:1)_lp_c
+PE(18:0_18:2)_ln_b
+PE(18:0_18:2)_lp_b
+PE(18:1/18:1)_ln_b
+PE(36:2)_lp_b
+PE(18:1_18:2)_ln_a
+PE(36:3)_lp_a
+PE(16:0_20:4)_ln_c
+PE(16:0_20:4)_lp_c
+PE(16:0_20:4)_lp_e
+PE(36:4)_lp_a
+PE(16:0_20:5)_ln_c
+PE(36:5)_lp_b
+PE(36:5)_lp_e
+PE(17:0_20:4)_ln_b
+PE(38:1)_ln_b
+PE(18:0_20:3)_lp_a
+PE(18:0_20:3)_lp_b
+PE(18:0_20:3)_ln_c
+PE(18:0_20:3)_lp_c
+PE(18:0_20:3)_lp_d
+PE(16:0_22:4)_ln_d
+PE(18:0_20:4)_lp_d
+PE(18:0_20:4)_ln_e
+PE(18:0_20:4)_lp_e
+PE(38:5)_ln_c
+PE(38:5)_ln_f
+PE(18:1_20:4)_lp_b
+PE(18:1_20:4)_lp_c
+PE(18:1_20:4)_lp_g
+PE(38:5)_lp_e
+PE(38:5)_lp_i
+PE(16:0_22:6)_ln_c
+PE(18:2_20:4)_ln_b
+PE(38:6)_lp_b
+PE(38:6)_lp_c
+PE(38:6)_lp_e
+PE(18:1_22:0)
+PE(18:1_22:1)
+PE(18:0_22:4)_ln_b
+PE(18:0_22:4)_lp_b
+PE(18:0_22:4)_ln_d
+PE(18:0_22:4)_lp_d
+PE(18:0_22:4)_lp_e
+PE(18:0_22:5)_ln_d
+PE(40:5)_lp_b
+PE(40:5)_lp_c
+PE(40:5)_lp_d
+PE(18:0_22:6)_ln_b
+PE(40:6)_lp_a
+PE(40:6)_lp_b
+PE(40:6)_lp_c
+PE(40:7)_lp_c
+PE(40:7)_lp_d
+PE(40:8)
+PE(20:4_22:0)
+PE(22:1_20:4)
+PE(O-16:1/16:0)
+PE(O-16:1/16:1)
+PE(O-18:1/16:0)_ln_b
+PE(O-18:1/16:0)_lp_b
+PE(O-34:1)_lp_a
+PE(O-34:2)_lp_a
+PE(O-34:2)_ln_a
+PE(O-34:3)
+PE(O-34:5)_ln_a
+PE(O-34:5)_ln_b
+PE(O-35:2)_ln_b
+PE(O-35:2)_ln_c
+PE(O-35:3)_lp_a
+PE(O-18:1/18:1)_ln_b
+PE(O-18:1/18:1)_lp_b
+PE(O-18:1/18:2)_ln_f
+PE(O-18:2/18:1)_ln_c
+PE(O-18:2/18:1)_lp_c
+PE(O-18:2/18:1)_lp_f
+PE(O-36:4)_ln_b
+PE(O-36:4)_lp_b
+PE(O-36:4)_ln_c
+PE(O-36:4)_lp_c
+PE(O-36:4)_lp_d
+PE(O-36:4)_ln_a
+PE(O-36:4)_lp_a
+PE(O-16:1/20:4)_ln_c
+PE(O-16:1/20:4)_lp_c
+PE(O-37:5)_lp_a
+PE(O-37:5)_lp_b
+PE(O-38:2)_ln_d
+PE(O-38:2)_lp_d
+PE(O-18:2/20:1)_ln_b
+PE(O-18:2/20:1)_lp_c
+PE(O-16:0/22:4)_ln_c
+PE(O-38:4)_lp_c
+PE(O-38:4)_lp_d
+PE(O-38:4)_ln_e
+PE(O-38:4)_lp_e
+PE(O-16:1/22:4)_ln_e
+PE(O-16:1/22:4)_lp_e
+PE(O-18:1/20:4)_ln_c
+PE(O-18:1/20:4)_ln_f
+PE(O-18:1/20:4)_lp_f
+PE(O-38:5)_lp_a
+PE(O-38:5)_lp_c
+PE(O-16:1/22:5)_ln_c
+PE(O-38:6)_ln_b
+PE(O-38:6)_lp_b
+PE(O-38:7)_ln_b
+PE(O-16:1/22:6)_lp_b
+PE(O-38:7)_ln_a
+PE(O-16:1_20:4)_ln_d
+PE(O-39:5)_ln_a
+PE(O-39:5)_ln_b
+PE(O-39:5)_ln_c
+PE(O-18:0/22:4)_ln_d
+PE(O-40:4)_lp_d
+PE(O-40:4)_lp_e
+PE(O-18:1/22:4)_lp_a
+PE(O-18:1/22:4)_lp_c
+PE(O-18:1/22:4)_ln_d
+PE(O-18:1/22:4)_lp_d
+PE(O-18:1/22:4)_lp_e
+PE(O-18:1/22:5)_ln_c
+PE(O-18:1/22:5)_lp_c
+PE(O-18:1/22:5)_ln_e
+PE(O-18:1/22:5)_lp_e
+PE(O-40:6)_ln_b
+PE(O-40:6)_lp_b
+PE(O-40:7)_ln_j
+PE(O-18:1/22:6)_lp_g
+PE(O-40:7)_lp_c
+PE(O-40:7)_lp_d
+PE(O-40:8)_lp_b
+PE(O-40:8)_ln_b
+PE(O-20:1/22:4)_ln_b
+PE(O-42:6)_ln_b
+PE(O-42:6)_lp_b
+PG(30:0)
+PG(16:0/16:0)
+PG(16:0_18:1)
+PG(16:0_18:2)
+PG(36:2)_ln_a
+PG(36:2)_ln_b
+PG(36:2)
+PG(16:0_20:4)_ln_c
+PG(18:2_18:2)_ln_a
+PG(18:2_18:2)_ln_b
+PG(36:4)_lp_c
+PG(16:0_20:5)_ln_b
+PG(16:0_22:4)_ln_b
+PG(18:0_20:4)_lp_b
+PG(18:0_20:4)_ln_c
+PG(18:1_20:4)_ln_b
+PG(18:1_20:4)_ln_a
+PG(38:5)_lp_b
+PG(38:5)_lp_c
+PG(16:0_22:6)_lp_b
+PG(18:2_20:4)_ln_a
+PG(18:0_22:6)_ln_b
+PG(18:1_22:6)_ln_a
+PG(40:7)_lp_b
+PG(40:8)_ln_a
+PG(22:6/22:6)
+PGE2
+PGF2alpha
+PI(16:0_18:2)
+PI(34:2)
+PI(18:0_18:1)
+PI(18:0_18:2)_ln_b
+PI(36:2)_ln_a
+PI(18:1_18:2)_ln_a
+PI(36:3)_lp_a
+PI(16:0_20:4)
+PI(18:0_20:4)_ln_b
+PI(18:1_20:4)_ln_a
+PI(18:1_20:4)_lp_a
+PI(16:0_22:6)
+PI(18:0_22:4)
+PI(18:0_22:5)_lp_a
+PS(16:0_18:0)
+PS(18:0_18:1)
+PS(18:0_18:2)_ln_d
+PS(36:2)_lp_d
+PS(38:2)
+PS(38:3)_ln_c
+PS(38:3)_lp_c
+PS(18:0_20:4)_ln_b
+PS(18:0_20:4)_lp_b
+PS(18:0_20:4)_ln_e
+PS(18:1/20:4)
+PS(38:5)
+PS(18:0_22:4)
+PS(40:4)
+PS(18:0_22:5)_ln_b
+PS(18:0_22:5)_ln_e
+PS(40:5)_lp_a
+PS(40:5)_lp_b
+PS(18:0_22:6)_ln_b
+PS(18:0_22:6)_ln_c
+PS(40:6)_lp_c
+PS(40:7)
+PS(40:8)_lp_a
+PS(O-18:3/22:4)
+PS(O-20:3/20:4)
+PS(O-20:3/22:4)
+Palmitoyl-EA
+Phe-Phe
+Phe-Trp
+Phenylalanine
+Phosphoethanolamine
+Pro-Phe
+Proline
+Resolvin D1
+Resolvin D2
+Resolvin D3
+S-Adenosylmethionine
+S-Allylcysteine
+S-Methylcysteine S-oxide
+Symmetric dimethyl-arginine
+SM(d32:1)
+SM(d32:2)
+SM(d33:1)
+SM(d34:0)
+SM(d34:0-OH)
+SM(d34:1)
+SM(d34:1-OH)
+SM(d34:2)
+SM(d35:1)
+SM(d36:0)
+SM(d36:1)
+SM(d36:2)
+SM(d38:0-OH)
+SM(d38:1)
+SM(d38:1)_ln_b
+SM(d38:1)_lp_a
+SM(d38:1)_lp_b
+SM(d38:2)_lp_a
+SM(d38:2)_lp_b
+SM(d38:4)_lp_b
+SM(d39:1)_lp_b
+SM(d39:2)_lp_a
+SM(d39:2)_lp_b
+SM(d40:0)
+SM(d40:0-OH)
+SM(d40:1)
+SM(d40:1)_ln_b
+SM(d40:1)_lp_b
+SM(d40:1-OH)
+SM(d40:2)
+SM(d40:2)_ln_a
+SM(d40:2)_ln_b
+SM(d40:2)_lp_a
+SM(d40:2)_lp_b
+SM(d41:1)
+SM(d41:2)_ln_bc
+SM(d41:2)_lp_a
+SM(d41:2)_lp_bc
+SM(d42:0)_lp_a
+SM(d42:1)_ln_b
+SM(d42:1)_lp_b
+SM(d42:2)
+SM(d42:2)_ln_a
+SM(d42:2)_ln_b
+SM(d42:2)_lp_a
+SM(d42:2)_lp_b
+SM(d42:3)_ln_a
+SM(d42:3)_lp_a
+SM(d43:1)_ln_b
+SM(d43:1)_lp_a
+SM(d43:2)_lp_b
+SM(d43:3)
+SM(d44:1)
+SM(d44:2)_ln_a
+SM(d44:2)_lp_a
+SM(d44:2)_lp_b
+SM(d44:3)
+Sarcosine
+Ser-Leu
+Serine
+Sitosterol Ester(20:4)_lp_c
+Succinic acid
+TG(4:0_14:0_16:0)_lp_c
+TG(4:0_16:0_16:0)_lp_d
+TG(36:1)_lp_d
+TG(2:0_16:0_18:2)_lp_d
+TG(38:0)_lp_c
+TG(4:0_16:0_18:1)_lp_b
+TG(4:0_16:0_18:1)_lp_c
+TG(38:2)_lp_c
+TG(2:0_18:1_18:2)_lp_b
+TG(2:0_18:2_18:2)
+TG(40:1)_lp_b
+TG(40:1)_lp_c
+TG(4:0_18:1_18:1)_lp_b
+TG(4:0_18:1_18:1)_lp_c
+TG(4:0_18:1_18:2)_lp_b
+TG(4:0_18:2_18:2)_lp_a
+TG(42:0)
+TG(42:1)_lp_a
+TG(42:3)_lp_b
+TG(42:5)_lp_b
+TG(10:0_16:0_18:1)_lp_c
+TG(10:0_16:1_18:1)_lp_b
+TG(46:0)
+TG(46:1)_lp_a
+TG(46:1)_lp_b
+TG(46:2)_lp_b
+TG(46:3)
+TG(10:0_18:2_18:2)
+TG(48:0)
+TG(48:1)_lp_c
+TG(48:2)_lp_c
+TG(48:23)_lp_b
+TG(12:0_18:2_18:2)_lp_b
+TG(49:0)
+TG(49:1)
+TG(49:2)_lp_c
+TG(49:3)_lp_b
+TG(49:4)
+TG(16:0_16:0_18:0)_lp_c
+TG(16:0_16:0_18:1)_lp_d
+TG(50:2)_lp_c
+TG(50:3)_lp_a
+TG(50:3)_lp_c
+TG(50:4)_lp_b
+TG(50:5)_lp_b
+TG(51:0)_lp_a
+TG(51:0)_lp_b
+TG(51:2)_lp_b
+TG(51:3)_lp_c
+TG(51:4)
+TG(51:5)_lp_b
+TG(16:0_16:0_20:0)_lp_c
+TG(52:1)_lp_c
+TG(52:1)_lp_a
+TG(52:1)_lp_b
+TG(16:0_18:1_18:1)_lp_c
+TG(52:2)_lp_e
+TG(52:2)_lp_f
+TG(52:3)_lp_b
+TG(52:3)_lp_d
+TG(52:4)_lp_f
+TG(16:1_18:1_18:2)_lp_e
+TG(16:0_18:2_18:3)_lp_e
+TG(16:1_18:2_18:2)_lp_d
+TG(52:6)_lp_c
+TG(52:7)_lp_b
+TG(53:1)_lp_d
+TG(53:2)_lp_c
+TG(53:2)_lp_d
+TG(53:3)_lp_a
+TG(53:3)_lp_d
+TG(53:3)_lp_e
+TG(53:4)_lp_b
+TG(53:4)_lp_c
+TG(17:1_18:2_18:2)_lp_a
+TG(53:6)_lp_a
+TG(53:6)_lp_b
+TG(54:1)_lp_d
+TG(54:1)_lp_a
+TG(54:2)_lp_d
+TG(54:3)_lp_i
+TG(54:3)_lp_h
+TG(18:1_18:1_18:1)_lp_e
+TG(18:1_18:1_18:2)_lp_d
+TG(54:4)_lp_f
+TG(18:1_18:2_18:2)_lp_d
+TG(54:5)_lp_e
+TG(16:0_16:0_22:6)_lp_f
+TG(16:0_18:2_20:4)_lp_e
+TG(54:6)_lp_a
+TG(54:6)_lp_b
+TG(54:6)_lp_d
+TG(54:7)_lp_d
+TG(18:2_18:2_18:3)_lp_b
+TG(54:8)_lp_a
+TG(54:8)_lp_c
+TG(55:1)_lp_b
+TG(55:2)_lp_b
+TG(55:3)_lp_c
+TG(55:4)_lp_a
+TG(55:4)_lp_b
+TG(55:4)_lp_c
+TG(55:5)_lp_a
+TG(55:5)_lp_b
+TG(55:5)_lp_d
+TG(55:6)_lp_b
+TG(55:7)_lp_b
+TG(56:1)_lp_a
+TG(56:1)_lp_b
+TG(56:2)_lp_d
+TG(56:3)_lp_e
+TG(56:4)_lp_e
+TG(56:4)_lp_f
+TG(56:4)_lp_b
+TG(56:4)_lp_d
+TG(16:0_18:1_22:4)_lp_a
+TG(16:0_18:1_22:4)_lp_c
+TG(16:0_18:1_22:4)_lp_d
+TG(16:0_18:1_22:4)_lp_e
+TG(56:6)_lp_c
+TG(56:6)_lp_d
+TG(56:6)_lp_e
+TG(16:0_18:1_22:6)_lp_f
+TG(56:7)_lp_c
+TG(56:7)_lp_e
+TG(18:2_18:2_20:4)_lp_c
+TG(56:8)_lp_e
+TG(56:9)_lp_b
+TG(57:1)
+TG(57:2)
+TG(57:3)_lp_b
+TG(58:10)_lp_b
+TG(58:10)_lp_c
+TG(58:11)_lp_a
+TG(58:2)_lp_d
+TG(58:3)_lp_c
+TG(58:4)_lp_e
+TG(58:4)_lp_g
+TG(58:5)_lp_e
+TG(58:6)_lp_d
+TG(58:7)_lp_a
+TG(58:7)_lp_c
+TG(58:7)_lp_e
+TG(18:2_18:2_22:4)_lp_d
+TG(58:8)_lp_b
+TG(58:8)_lp_e
+TG(58:9)_lp_b
+TG(58:9)_lp_c
+TG(60:10)_lp_c
+TG(60:10)_lp_d
+TG(60:3)_lp_b
+TG(60:4)_lp_b
+TXB2
+Taurine
+Threonine
+Tryptophan
+Tyrosine
+UDP
+UDP-N-acetylglucosamine
+UDP-glucose
+UDP-glucuronic acid
+UMP
+UTP
+Ubiquinol Q10
+Valine
+Acetylcholine
+Acetylphosphate
+Acisoga
+Adenosine
+Ala-Ala
+Allantoin
+2-Aminobutyric acid
+Aminoadipic acid
+sn-Glycero-3-phosphocholine
+alpha-Muricholic acid
+alpha-Tocopherol
+Aminobutyric acid
+Eicosanoyl-EA
+Benzyl butyl phthalate
+beta-Alanine
+3-Guanidinopropanoic acid
+beta-Muricholic acid
+Betaine
+Biliverdin
+Biopterin
+bis(2-Ethylhexyl)phthalic acid
+3-Dehydroxycarnitine
+Cadaverine
+Carnitine
+Chenodeoxycholic acid
+Cholic acid
+Cholesterol
+Choline
+cis-Aconitic acid
+Citric acid/Isocitric acid
+coenzyme(Q8)
+Cortisol
+Creatine
+Creatinine
+Cyclohexylamine
+Cystine
+Cytidine
+Deoxycholic acid
+Deoxyguanosine
+Deoxyuridine
+Diethyl phthalate
+Dihydroxyacetone phosphate
+Dimethylglycine
+Ectoine
+Edetic acid
+Erythrose 4-phosphate
+Fructose 1,6-bisphosphate
+Fructose 6-phosphate
+gamma-Glutamylisoleucine
+gamma-Glutamylleucine
+gamma-Glutamyltyrosine
+Gluconic acid
+Glucose
+Glutaric acid
+Glutathione
+Glyceraldehyde 3-phosphate
+sn-Glycero-3-phosphate
+Glycochenodeoxycholic acid
+Glycocholic acid
+Glycodeoxycholic acid
+Glycohyocholic acid
+Glycohyodeoxycholic acid
+Glycoursodeoxycholic acid
+Guanidoacetic acid
+Guanine
+Guanosine
+Hexose
+Hexose 6-phosphate
+Hippuric acid
+Histamine
+Homoarginine
+Homocitrulline
+Homocysteic acid
+5-Hydroxyindoleacetic acid
+Hydroxyphenyllactic acid
+Hyodeoxycholic acid
+Hypotaurine
+Hypoxanthine
+Imidazolepropionic acid
+Imidazoleacetic acid
+Indolelactic acid
+Indoleacetic acid
+Indoleacrylic acid
+Ketoleucine
+Kynurenic acid
+Kynurenine
+Leucine/Isoleucine
+3-Hydroxybenzoic acid
+Maleic acid
+Methionine sulfoxide
+Methyl N-methylanthranilate
+Methylguanidine
+Methylimidazoleacetic acid
+Monoethylhexyl phthalic acid
+Niacinamide
+Oleamide
+omega-Muricholic acid
+Oxidized glutathione
+Pantothenic acid
+Pantothenol
+Phenylacetic acid
+Phenylacetylglycine
+Phenyllactic acid
+Choline phosphate
+Phosphocreatine
+Phosphoenolpyruvic acid
+Phosphoserine
+Phytosphingosine
+Pipecolic acid
+Pro-Gly
+Proline betaine
+Pseudouridine
+Putrescine
+Pyridoxamine
+Pyruvic acid
+Retinoic acid
+Ribose 5-phosphate
+Pentose 5-phosphate
+Sedoheptulose 7-phosphate
+Serotonin
+Spermidine
+Spermine
+Sphinganine
+C16 Sphinganine
+Sphingosine
+Sphingosine 1-phosphate
+Tauro-alpha-muricholic acid
+Tauromuricholic acid
+Tauro-beta-muricholic acid
+Taurochenodeoxycholic acid
+Taurocholic acid
+Taurodeoxycholic acid
+Taurohyocholic acid
+Taurohyodeoxycholic acid
+Tauroursodeoxycholic acid
+Thiamine
+Trigonelline
+Trimethylamine N-oxide
+Trimethylbenzene
+Ubiquinol Q9
+Uric acid
+Uridine
+Urocanic acid
+Ursodeoxycholic acid
+Xanthine
+Xanthosine
