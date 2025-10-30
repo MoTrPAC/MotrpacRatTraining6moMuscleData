@@ -6,3 +6,4 @@ sandbox
 vignettes/articles
 .DS_Store
 *.zip
+.Rhistory

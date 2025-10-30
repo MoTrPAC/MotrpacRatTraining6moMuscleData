@@ -1,10 +1,13 @@
 library(MotrpacRatTraining6moMuscleData)
 library(dplyr)
 library(TMSig)
+library(clustifyr)
+library(here)
 
 ## C5 GO:BP subcollection (v2023.2.Hs built on Ensembl 110 gene symbols).
 ## Downloaded from https://www.gsea-msigdb.org/gsea/msigdb/human/collections.jsp
 human_gene_sets <- file.path(
+  here(),
   "data-raw",
   c(
     "c5.go.v2023.2.Hs.symbols.gmt",
@@ -55,7 +58,7 @@ rat_gene_sets <- data.frame(
   distinct() %>%
   filter(length(unique(human_gene_symbol)) >= 5L, .by = set) %>%
   split(x = .$rat_gene_symbol, f = .$set) %>%
-  filter_sets(min_size = 5L)
+  TMSig::filterSets(min_size = 5L)
 
 length(rat_gene_sets) # 9293
 

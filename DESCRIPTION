@@ -9,13 +9,15 @@ Authors@R:
              comment = c(ORCID = "0000-0003-1552-4870"),
              role = c("aut", "cre")),
       person(given = "Christopher", family = "Jin",
-             comment = "Contributed code for Fuzzy C-Means clustering",
-             role = "ctb"))
+             email = "cajin@stanford.edu",
+             comment = c(ORCID = "0000-0001-7340-5023"),
+             role = c("aut", "maintainer"))
+      )
 Description: An R package containing data and analysis results of MoTrPAC PASS1B 
     skeletal muscle (gastrocnemius and vastus lateralis) taken from rats that 
-    were either sedentary (SED) for 8 weeks or were treadmill trained for 1 week 
-    (1W), 2W, 4W, or 8W. Rats were approximately 6 months old at the start of 
-    the training protocol.
+    were either sedentary (SED) for 8 weeks or were treadmill trained for 1 week,
+    2 weeks, 4 weeks, or 8 weeks (1W, 2W, 4W, or 8W, respectively). Rats were 
+    approximately 6 months old at the start of the training protocol.
 Encoding: UTF-8
 LazyData: true
 LazyDataCompression: gzip
@@ -36,9 +38,11 @@ Suggests:
     latex2exp,
     limma,
     Mfuzz,
+    MotrpacRatTraining6mo,
     MotrpacRatTraining6moData (>= 1.9.1),
     MotrpacRatTraining6moWAT (>= 1.0.1),
     purrr,
+    here,
     rmarkdown,
     testthat (>= 3.0.0),
     tibble,
