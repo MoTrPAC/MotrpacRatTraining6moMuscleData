@@ -84,34 +84,32 @@ ATAC_GN <- ExpressionSet(
 
 # dim(ATAC_GN) # 856947 features, 50 samples
 
-counts <- dge_gn$counts
-lib.size <- getNormLibSizes(dge_gn)
-y <- t(log2(t(counts + 0.5) / (lib.size + 1) * 1e+06))
-y <- normalizeBetweenArrays(y, method = "none")
-
-logCPM <- y
-
-save(logCPM, phenoData,
-     file = "sandbox/ATAC-GN_normalized_logCPM.RData",
-     version = 3)
+# counts <- dge_gn$counts
+# lib.size <- getNormLibSizes(dge_gn)
+# y <- t(log2(t(counts + 0.5) / (lib.size + 1) * 1e+06))
+# y <- normalizeBetweenArrays(y, method = "none")
+#
+# logCPM <- y
+#
+# save(logCPM, phenoData,
+#      file = "~/Downloads/ATAC-GN_normalized_logCPM.RData",
+#      version = 3)
 
 # Check for extreme outliers ----
 
 # # Color by sex
-# color <- ifelse(ATAC_GN$sex == "Female", "#ff6eff", "#5555ff")
-# label <- ATAC_GN$timepoint
-# levels(label) <- c("0", "1", "2", "4", "8")
-#
-# # Slow
-# plotMDS(dge_gn, top = 1e5, label = label, col = color)
-# plotMDS(dge_gn, top = 1e5, label = label, col = color, dim.plot = c(1, 3))
+color <- ifelse(ATAC_GN$sex == "Female", "#ff6eff", "#5555ff")
+label <- ATAC_GN$timepoint
+levels(label) <- c("0", "1", "2", "4", "8")
+
+# Slow
+plotMDS(dge_gn, top = 1e5, label = label, col = color)
+plotMDS(dge_gn, top = 1e5, label = label, col = color, dim.plot = c(1, 3))
 # Potential outliers. Samples appear to separate by sex
 
 
-## We will not save the ExpressionSet object because it is too large.
-
-# Save
-# usethis::use_data(ATAC_GN, overwrite = TRUE, version = 3)
+# Save -> This data object is 45M, it's quite large but not that crazy.
+usethis::use_data(ATAC_GN, overwrite = TRUE, version = 3)
 
 
 

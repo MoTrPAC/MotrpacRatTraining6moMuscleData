@@ -1,17 +1,17 @@
 Package: MotrpacRatTraining6moMuscleData
 Type: Package
 Title: Analysis of MoTrPAC Rat Skeletal Muscle -Omics Data
-Version: 0.1.0.9003
-Date: 2025-08-26
+Version: 0.1.0.9004
+Date: 2025-11-03
 Authors@R: 
-    c(person(given = "Tyler", family = "Sagendorf", 
-             email = "tyler.sagendorf@pnnl.gov",
-             comment = c(ORCID = "0000-0003-1552-4870"),
-             role = c("aut", "cre")),
-      person(given = "Christopher", family = "Jin",
+    c(person(given = "Christopher", family = "Jin",
              email = "cajin@stanford.edu",
              comment = c(ORCID = "0000-0001-7340-5023"),
-             role = c("aut", "maintainer"))
+             role = c("aut")),
+      person(given = "Tyler", family = "Sagendorf", 
+             email = "tyler.sagendorf@pnnl.gov",
+             comment = c(ORCID = "0000-0003-1552-4870"),
+             role = c("aut", "cre"))
       )
 Description: An R package containing data and analysis results of MoTrPAC PASS1B 
     skeletal muscle (gastrocnemius and vastus lateralis) taken from rats that 
@@ -24,7 +24,8 @@ LazyDataCompression: gzip
 Depends: 
     R (>= 3.6.0)
 Imports:
-    stats
+    stats,
+    conflicted
 Suggests:
     Biobase,
     biomaRt,
@@ -60,5 +61,5 @@ Remotes:
     github::MoTrPAC/MotrpacRatTraining6moWAT,
     github::pnnl/TMSig
 VignetteBuilder: knitr
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Roxygen: list(markdown = TRUE)

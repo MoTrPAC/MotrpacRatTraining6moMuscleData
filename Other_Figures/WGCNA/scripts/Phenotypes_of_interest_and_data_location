@@ -1,0 +1,29 @@
+Hi Shane,
+
+Thank you for meeting with us today! There is an R package for the physiology data on these rats. Will this work? https://motrpac.github.io/MotrpacRatTrainingPhysiologyData/
+
+For phenotypes in the model I would start with:
+-Change in Vo2max
+-Change in % lean mass 
+-plasma lactate
+-plasma glycerol
+-plasma NEFA
+
+For the muscle specific phenotypes it gets a little tricky—the gastroc (GN in the omics data Nick sent) was phenotyped by region (termed LG and MG). If we use these measures, I would average values between LG and MG to associate with omes per animal given we used whole muscle samples (both regions) for omic analyses.  I was also thinking it would be good to add global proteomics to the analysis—this can help with sanity checks for known pathways and associated phenotypes. 
+
+Additional phenotypes:
+-LG/MG CSA
+-LG/MG CS activity
+-LG/MG Type I fibers
+-LG/MG Type II fibers
+-LG/MG glycogen
+-insulin
+-corticosterone
+-glucagon
+-glucose
+
+If you need help identifying the phenotypes in the package, feel free to send me a message any time. 
+
+Thank you so much for your help and have a nice weekend!
+
+Gina

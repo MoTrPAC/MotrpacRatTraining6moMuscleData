@@ -1,0 +1,471 @@
+---
+title: "Muscle_Splicing_P1B"
+author: "Christopher Jin"
+date: '2025-07-08'
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MotrpacRatTraining6mo)
+library(MotrpacRatTraining6moData)
+library(SGSeq)
+library(TxDb.Rnorvegicus.UCSC.rn6.refGene)
+library(dplyr)
+library(Rsamtools)
+library(limma)
+library(parallel)
+library(BiocParallel)
+library(here)
+library(biomaRt)
+library(TMSig)
+library(MotrpacHumanPreSuspensionData)
+library(conflicted)
+library(ggplot2)
+library(gridExtra)
+library(edgeR)
+
+
+source(file.path(here(), "data-raw", "raw_omics_data", "splicing_helper_functions.R"))
+gtf_file_path = file.path(here(), "data", "Figures", "Splicing", "Rattus_norvegicus.mRatBN7.2.108.gtf")
+num_cores = 8
+
+conflicts_prefer(dplyr::select,
+                 dplyr::filter,
+                 dplyr::rename)
+
+desired_tissues = c("gastroc", "vastus")
+#, #exclude ovary for now--that will go into a different report. 
+# "ovaries" = "Ovaries Powder"
+# plot_rn7_data(assay = "TRNSCRPT",
+#               tissue = "HEART",
+#               feature = "NEB")
+```
+
+# Introduction:
+
+I'm detailing the rationale, and methodology above, in these sections.
+The implementation details can be found below.
+
+![SGSeq implementation image](images_to_include/SGSeq.png)
+
+I'm using the tool SGSeq to calculate and measure splicing events
+(<https://doi.org/10.1371/journal.pone.0156132>), which was recommended
+from archana and has previously been used in a cardiac-specific rat
+paper. Here is a helpful overview of the general thought process of the analysis 
+steps.
+
+## General logistics & tools
+
+The original bam files, mapped to rn7, are available:
+`gs://motrpac-data-raw-pass1b-06/pass1b-06/transcriptomics/*` relevant
+bam files have all been downloaded to one combined folder in
+`data/bams/`
+
+the GTF file file is located
+`gs://rna-seq_araja/references/rn/mRatBN7.2/v108/Rattus_norvegicus.mRatBN7.2.108.gtf`
+
+The Gene mapping is located
+`gs://motrpac-data-hub/pass1b-06/analysis/resources/motrpac-mappings-master_feature_to_gene.txt`
+See the `make_gene_mapping` function for how this is actually used.
+
+The RNAseq metadata and general experimental design information is 
+from `MotrpacRatTraining6moData`. 
+
+
+## Analysis Overview and Parameters:
+
+### Filtering:
+
+Each transcript must have an average percent spliced in of
+10%.
+
+We require individual transcripts to have a minimum number of average
+counts of #.
+
+After those two above filtering steps, we remove any cases with one single 
+transcript::gene mapping (if there is only a single transcript, no other spliced
+form is eligible for comparison).
+
+
+
+So in this section I've basically just followed the default parameters except
+I've made a 0.1 Splicing frequency to focus on larger effect sizes.
+```{r set up SGSeq df, eval = FALSE}
+local_bams = file.path(here(), "data", "bam")
+
+tissue_mapping = list(
+  "gastroc" = "Gastrocnemius Powder",
+  "vastus" = "Vastus Lateralis Powder"
+)
+
+#-----these lines are agnostic to tissue-----
+anno = SGSeq::importTranscripts(gtf_file_path)
+target_chr = paste0("chr", c(1:20,"X", "Y"))
+txdb = GenomeInfoDb::keepSeqlevels(anno, target_chr, pruning.mode="coarse")
+GenomeInfoDb::seqlevelsStyle(txdb) = "UCSC"
+txf_ucsc = convertToTxFeatures(txdb)
+#--------------------------------
+
+#-------for each tissue we just follow instructions--------
+# The parse_filter_counts is the only step that's outside of instructions
+# But that function just applies all the filtering steps as described at the top
+for(tissue in desired_tissues){
+  SGSeq_Meta = set_up_SGSeq_meta(tissue_mapping[[tissue]])
+  sgfc_ucsc = analyzeFeatures(SGSeq_Meta, 
+                              features = txf_ucsc, 
+                              cores = num_cores, 
+                              psi = .1) #PSI 0 is default
+  #its splice frequency, so .1 = 10%, i think
+  saveRDS(sgfc_ucsc, file = file.path(here(), "data", tissue, "sgfc_10psi.RDS"))
+  
+  sgvc_pred = analyzeVariants(sgfc_ucsc, cores = num_cores)
+  sgv = rowRanges(sgvc_pred)
+  sgvc = getSGVariantCounts(sgv, sample_info = SGSeq_Meta, cores = num_cores)
+  saveRDS(sgvc, file = file.path(here(), "data", tissue, "sgvc_10psi.RDS"))
+  
+  #this parsing and filtering step is HIGHLY important
+  #I'd highly recommend reading the documentation in `parse_filter_counts`
+  #to describe whats going on 
+  parsed_counts = parse_filter_counts(sgvc, tissue)
+  saveRDS(parsed_counts, file = file.path(here(), "data", tissue, "counts_meta.RDS"))
+}
+```
+
+So now that we have datasets available, and properly processed through the
+filtering criteria, lets go ahead and run models.
+
+## Rationale for Likelihood ratio tests
+This model essentially tests if information about any level of group and timepoint
+helps to explain the variance found in every given feature at all. It could mean
+that one group and timepoint fits results well, it could mean all of group and timepoint
+helps to improve the model fit. 
+
+```{r, eval = F}
+for(tissue in desired_tissues){
+  tissue_parsed_filt_counts = load_parsed_counts(selected_tissue = tissue)
+  sample_metadata = tissue_parsed_filt_counts[["sample_metadata"]]
+  qc_norm = t(tissue_parsed_filt_counts[["qc_norm"]]) 
+  features_to_test = colnames(qc_norm) = qc_norm[rownames(qc_norm) == "variantName",]
+  
+  gene_mapping = tissue_parsed_filt_counts[["qc_norm"]] %>% 
+    dplyr::select(geneName, variantName)
+  
+  #here we combine the dataset with the metadata to make sure that we can describe 
+  #the actual rats and the groups/sex that they correspond to. 
+  qc_meta = qc_norm %>%
+    as.data.frame() %>%
+    filter(rownames(.) != "geneName" & rownames(.) != "variantName") %>%
+    #because geneName is a list it gets all weird, so i have to reconv back to num.
+    mutate(across(everything(), as.numeric)) %>%
+    mutate(viallabel = rownames(.)) %>%
+    left_join(., sample_metadata, by = "viallabel") %>%
+    mutate(group_timepoint = interaction(sex, group))
+  
+  #so here is the LRT to find 
+  lrt_results = lapply(features_to_test, function(feature) {
+    full_formula = as.formula(paste(feature, "~ group_timepoint"))
+    null_formula = as.formula(paste(feature, "~ 1"))
+    
+    full_model = lm(full_formula, data = qc_meta)
+    null_model = lm(null_formula, data = qc_meta)
+    
+    test = anova(null_model, full_model)
+    
+    tibble(
+      variantName = feature,
+      p_value = test$`Pr(>F)`[2],
+      F_statistic = test$F[2],
+      df1 = test$Df[2],
+      df2 = test$Res.Df[2],
+      var_explained = summary(full_model)$r.squared
+    )
+  }) %>% 
+    bind_rows() %>%
+    left_join(., gene_mapping, by = "variantName") %>%
+    fit_gene_mapping() %>%
+    mutate(tissue = tissue) %>%
+    filter(!chromosome_name %in% c("X", "Y")) %>%
+    mutate(adj_p_value = p.adjust(p_value, method = "BH")) %>%
+    arrange(adj_p_value) 
+  
+  # saveRDS(lrt_results, file = file.path(here(), "data", tissue, "LRT_Results.RDS"))
+}
+```
+
+Printout of LRT with info about splicing event. 
+```{r, eval = F}
+for(tissue in desired_tissues){
+  lrt_results = readRDS(file.path(here(), "data", tissue, "LRT_Results.RDS")) 
+  
+  tissue_parsed_filt_counts = load_parsed_counts(selected_tissue = tissue)
+  tissue_anno = tissue_parsed_filt_counts$counts_annotated %>%
+    select(from, to, type, variantName)
+  
+  print_out = lrt_results %>%
+    select(variantName, gene_symbol, tissue, entrez_gene, F_statistic, adj_p_value, chromosome_name) %>%
+    left_join(., tissue_anno, by = "variantName")
+  write.csv(print_out,
+            file = file.path(here(), "data", tissue, paste0(tissue, "_LRT_Results.csv")),
+            row.names = FALSE)
+  
+}
+```
+
+
+## Enrichment Analysis
+Now lets take a quick detour to visualize the results for the LRT. 
+To keep things consistent with the the methodologies used by Tyler for all of the other figures,
+we use the same set filtering methods that he implements. See the Splicing results
+in the other notebook to generate the enrichments. 
+
+```{r}
+for(tissue in desired_tissues){
+  if(tissue == "vastus") enrichment_code = "VL"
+  if(tissue == "gastroc") enrichment_code = "GN"
+  
+  enrichment_res = read.csv(
+    file.path(here(),
+              "Figures",
+              "Splicing",
+              "data",
+              sprintf("%s_CAMERA.csv", enrichment_code))
+  ) %>%
+    rename(GeneSet = Set,
+           NGenes = NGenesRat)
+  
+  plot_for_camera = plot_enrichment_bubble(enrichment_res,
+                                           custom_title = paste(tissue, "LRT Enrichments"))
+  print(plot_for_camera)
+}
+```
+## Junction plotting
+
+Now we use the SGSeq built in functions to visualize some of the actual changes.
+
+Notes:
+
+So these visualize all of the splicing events for a whole gene, instead of just the actual
+event that is significant, and in most cases the events are fully consistent across
+some other junctions. 
+
+I think in general these plots are brought up as one of the default plotting functions
+for the SGSeq package, but I don't find them super useful. Maybe skip these plots. 
+
+```{r, eval = TRUE}
+for(tissue in desired_tissues){
+  #-----so we load this stuff just to make sure the plots we make are actually
+  #------------in the right order for the heatmaps--------
+  parsed_counts = load_parsed_counts(selected_tissue = tissue)
+  sample_metadata = parsed_counts$sample_metadata %>%
+    arrange(group, sex) %>%
+    pull(viallabel)
+  #-------------------------------------------------------------
+  
+  #These are just the DA
+  selected_differential_results = load_differential_splicing(selected_tissue = tissue) %>%
+    filter(adj_p_value < 0.05) %>%
+    pull(variantName)
+  
+  #------------these are the results that actually annotate junction events 
+  #and we just pull out the info for the genes and variants that have 
+  sgfc_ucsc = load_sgfc(selected_tissue = tissue)
+  sgvc = load_sgvc(selected_tissue = tissue) 
+  #so these are the mapping events that we're actually interested in
+  feature_metadata_mapped = elementMetadata(sgvc) %>% 
+    as.data.frame() %>%
+    mutate(variantName = gsub("[/,]", "_", variantName)) %>%
+    filter(variantName %in% selected_differential_results) %>%
+    head(5) %>%
+    pull(geneID)
+  #--------------------------------------------------------
+  
+  #and now we just plot all the junction events and stuff
+  #for some reason rowv needs to be named
+  sample_order = match(sgfc_ucsc$sample_name, sample_metadata)
+  names(sample_order) = sgfc_ucsc$sample_name
+  lapply(feature_metadata_mapped, function(single_geneID){
+    plotFeatures(sgfc_ucsc, 
+                 geneID = single_geneID, 
+                 Rowv = NULL,
+                 include = "junctions", 
+                 main = single_geneID)
+  })
+  
+}
+```
+
+
+
+## Single isoform bargraphs
+
+So here, for each actual variant considered to be differentially spliced, we
+make a simple representation of what % of all variants this single
+variant represents. Essentially, out of all variants we can measure for a given 
+gene, this isoform variant appears ~n% of the time for this sample. 
+
+In a lot of cases, although considered statistically significant, the absolute
+magnitude of changes is relatively small. 
+```{r, eval = TRUE}
+for(tissue in desired_tissues){
+  #------here we want to compare to original DA results, so we use the motrpac ID for 1B data
+  if(tissue == "vastus") motrpac_code = "SKM-VL"
+  if(tissue == "gastroc") motrpac_code = "SKM-GN"
+  #---------------------------------
+  norm_counts = load_parsed_counts(selected_tissue = tissue)
+  sig_lrt_results = load_differential_splicing(selected_tissue = tissue) %>%
+    filter(adj_p_value < 0.05) %>%
+    head(5)  %>%
+    pull(variantName)
+  
+  #--------this is kinda copied from parse filter counts------ 
+  #for the conversion to %
+  percent_counts = norm_counts$counts_annotated %>%
+    filter(mean_counts > 5) %>% #arbitrary but less than 5 counts seems very low
+    group_by(geneName) %>%
+    mutate(across(where(is.numeric), ~ . / sum(.) * 100)) %>% #this is percentage
+    #if there are no counts entirely for the whole gene for some columns, we just force it to 0%.
+    mutate(across(where(is.numeric), ~ replace(., . == "NaN", 0)))
+  percent_counts = fit_gene_mapping(percent_counts)
+  
+  
+  for(single_feature in sig_lrt_results){
+    relevant_counts = percent_counts %>%
+      filter(variantName == single_feature)  %>%
+      t() %>%
+      as.data.frame() 
+    #----these are just for annotation and adding some more info to the plots
+    colnames(relevant_counts) = relevant_counts[rownames(relevant_counts) == "gene_symbol",]
+    variant_type = relevant_counts[rownames(relevant_counts) == "variantType",]
+    #-------------------------------------------------
+    
+    #------now we pull the 1B dataset-------
+    ensembl_gene_name = percent_counts %>% 
+      filter(variantName == single_feature) %>%
+      pull(ensembl_gene)
+    norm_plot_1B = plot_rn7_data(feature_ID = ensembl_gene_name,
+                                 scale_x_by_time = FALSE,
+                                 add_gene_symbol = TRUE)
+    #------
+    relevant_counts = relevant_counts %>%
+      mutate(viallabel = rownames(.)) %>%
+      right_join(., norm_counts$sample_metadata, by = "viallabel") 
+    relevant_counts[,1] = as.numeric(relevant_counts[,1])
+    gene_name = colnames(relevant_counts)[1]
+    
+    p_value = load_differential_splicing(selected_tissue = tissue) %>%
+      filter(variantName == single_feature) %>%
+      pull(adj_p_value) %>%
+      signif(3)
+
+    pdf(file = file.path(here(), "plots", "trajectory_splicing", paste0(tissue, gene_name, ".pdf")),
+        width = 5,
+        height = 5)
+    plot = ggplot(relevant_counts, aes(x = factor(group, levels = c("control", "1w", "2w", "4w", "8w")), 
+                                       y = .data[[gene_name]])) + 
+      stat_summary(fun = mean, geom = "point", size = 5, ) +
+      stat_summary(fun = mean, geom = "point", size = 5, shape = 1, stroke = 1) +
+      stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.15, alpha = 0.5) +
+      theme_bw() +
+      theme(legend.position = "bottom",
+            axis.text.x = element_text(angle = 45, hjust = 1)) + 
+      xlab(paste(tissue, "Isoform %", "LRT Adj. P-Value: ", p_value)) + 
+      ylab(paste(gene_name, "variant type:", variant_type))
+    gridExtra::grid.arrange(norm_plot_1B, plot, ncol = 1)
+    dev.off()
+  }
+}
+
+```
+
+
+```{r}
+gastroc_da = load_differential_splicing(selected_tissue = "gastroc")
+vastus_da = load_differential_splicing(selected_tissue = "vastus")
+
+lrt_sig = rbind(gastroc_da, vastus_da) %>% filter(adj_p_value < 0.05)
+lrt_sig
+```
+
+Checking if any of our interesting features related splicing are also
+differentially regulated at an overall transcript level. (None are)
+
+The DA is from pass 1B rn6, but Pauline reran the rn7 analysis and there 
+are also no significant features within our interesting splicing dataset. 
+
+
+```{r}
+TRNSCRPT_SPLICING_VL_CAMERA = read.csv(
+  file.path(here(),
+            "Figures",
+            "Splicing",
+            "data",
+            "VL_CAMERA.csv")
+) %>%
+  mutate(Contrast = "Vastus")
+
+TRNSCRPT_SPLICING_GN_CAMERA = read.csv(
+  file.path(here(),
+            "Figures",
+            "Splicing",
+            "data",
+            "GN_CAMERA.csv")
+) %>%
+  mutate(Contrast = "Gastroc")
+
+Splicing_muscles = rbind(TRNSCRPT_SPLICING_VL_CAMERA, 
+                         TRNSCRPT_SPLICING_GN_CAMERA)
+
+# Select the top 6 terms by cluster
+top_terms <- Splicing_muscles %>% 
+  filter(PAdj < 0.05) %>% 
+  group_by(Contrast) %>%
+  slice_min(PValue, n = 10L) %>%
+  ungroup() %>%
+  pull(Set) %>% 
+  unique()
+
+Splicing_muscles <- filter(Splicing_muscles, Set %in% top_terms) %>% 
+  mutate(logP = -log10(PValue))
+
+# Dynamic heatmap height. Each cell of the heatmap is 14 pt, by default
+height <- convertUnit(length(top_terms) * unit(20, "pt"), "in")
+height <- max(as.numeric(height) + 0.2, 4)
+
+# Dynamic heatmap width
+row_label_width <- ComplexHeatmap::max_text_width(Splicing_muscles[["Set"]])
+row_label_width <- convertUnit(row_label_width, "in")
+
+width <- convertUnit(15 * unit(15, "pt"), "in")
+width <- as.numeric(width + row_label_width) + 2.5
+
+enrichmap(x = Splicing_muscles,
+          plot_sig_only = FALSE,
+          n_top = Inf, # plot all terms
+          statistic_column = "logP",
+          set_column = "Set",
+          padj_column = "PAdj",
+          padj_legend_title = "BH Adjusted\nP-Value",
+          contrast_column = "Contrast",
+          heatmap_args = list(
+            cluster_rows = FALSE,
+            rect_gp = gpar(fill = "white", col = "grey85"),
+            heatmap_legend_param = list(
+              title = latex2exp::TeX(
+                "$\\bf{$-$log_{10}(P$-$Value)}$")
+            ),
+            clustering_distance_rows = "pearson",
+            column_names_side = "top",
+            # column_names_rot = 0,
+            # column_names_centered = TRUE,
+            column_title_gp = gpar(fontsize = unit(16, "pt"),#unit(9, "pt"),
+                                   fontface = "bold")
+          ),
+          color = c("white", "#503080"),
+          filename = file.path("plots", "Splicing_CAMERA.pdf"),
+          height = height, width = width)
+```
+

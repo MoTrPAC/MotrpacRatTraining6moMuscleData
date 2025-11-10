@@ -151,16 +151,16 @@ dim(TRNSCRPT_GN) # 14201 features, 50 samples
 # Save
 usethis::use_data(TRNSCRPT_GN, overwrite = TRUE, version = 3)
 
-
-counts <- dge_gn$counts
-lib.size <- getNormLibSizes(dge_gn)
-y <- t(log2(t(counts + 0.5) / (lib.size + 1) * 1e+06))
-y <- normalizeBetweenArrays(y, method = "none")
-
-foo <- ExpressionSet(assayData = y,
-                     phenoData = phenoData,
-                     featureData = TRNSCRPT_GN@featureData)
-
-saveRDS(foo,
-     file = "sandbox/TRNSCRPT-GN_normalized_logCPM.rds",
-     version = 3)
+#
+# counts <- dge_gn$counts
+# lib.size <- getNormLibSizes(dge_gn)
+# y <- t(log2(t(counts + 0.5) / (lib.size + 1) * 1e+06))
+# y <- normalizeBetweenArrays(y, method = "none")
+#
+# foo <- ExpressionSet(assayData = y,
+#                      phenoData = phenoData,
+#                      featureData = TRNSCRPT_GN@featureData)
+#
+# saveRDS(foo,
+#      file = "sandbox/TRNSCRPT-GN_normalized_logCPM.rds",
+#      version = 3)

@@ -86,7 +86,8 @@ plotMDS(exprs(PROT_GN),
 )
 
 
-# Remove outliers ----
+# Remove outliers ---- same outliers as the phophoproteomics
+# probably something with the processing of these tissue samples
 
 # There are 3 samples flagged as outliers due to low loading amounts or poor
 # labeling. We will remove these.

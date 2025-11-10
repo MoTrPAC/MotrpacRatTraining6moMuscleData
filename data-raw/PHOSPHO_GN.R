@@ -87,7 +87,8 @@ plotMDS(exprs(PHOSPHO_GN),
 )
 # No clear separation by sex or timepoint.
 
-# Remove outliers ----
+# Remove outliers ---- same outliers as the global proteomics
+# probably something with the processing of these tissue samples
 outlier_samples <- MotrpacRatTraining6moData::OUTLIERS %>%
   filter(grepl("t55", tissue_code), assay == "PHOSPHO") %>%
   pull(viallabel)

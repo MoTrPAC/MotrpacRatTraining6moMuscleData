@@ -6,12 +6,12 @@ output:
   rmarkdown::html_vignette:
     toc: true
 vignette: >
-%\VignetteIndexEntry{SKMGN Proteomics Gene Set Testing}
+  %\VignetteIndexEntry{SKMGN Proteomics Gene Set Testing}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-  ---
+---
   
-  ```{r, include = FALSE}
+```{r, include = FALSE}
 knitr::opts_chunk$set(
 collapse = TRUE,
 comment = "#>", 

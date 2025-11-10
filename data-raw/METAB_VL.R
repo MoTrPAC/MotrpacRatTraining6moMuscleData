@@ -3,6 +3,7 @@ library(dplyr)
 library(limma) # plotMDS
 
 # Additional metabolite information, such as RefMet metabolite IDs
+# We can pull refmet information from a previous project (which is tissue agonistic)
 refmet_df <- MotrpacRatTraining6moData::METAB_LUNG_DA %>%
   # Remove internal standards
   filter(!grepl("InternalStandard|iSTD", metabolite_refmet)) %>%
