@@ -1,6 +1,6 @@
 ## Purpose: Use WGCNA to determine clusters of related features
 
-source("//protoapps/UserData/Sanford/For_Tyler/20210413_MoTrPAC_Data/Tyler_work/GSEA_functions.R")
+source("R/GSEA_functions.R")
 
 library(writexl)
 library(WGCNA)
@@ -8,13 +8,12 @@ options(stringsAsFactors = FALSE)
 enableWGCNAThreads()
 # disableWGCNAThreads()
 library(RColorBrewer)
-library(org.Mm.eg.db)
 library(MSnSet.utils)
 library(ComplexHeatmap)
 library(glue)
 
 # output folder
-fs::dir_create("../output/WGCNA_global")
+fs::dir_create("/output/WGCNA_global")
 
 # process_data
 # Load processed protein-level MSnSet
@@ -49,9 +48,9 @@ if (FALSE) {
                              corOptions = list(use = "pairwise.complete.obs"),
                              verbose = 0,
                              RsquaredCut = 0.90)
-    
+
     png(paste0(out_path, "/SoftPower_plot.png"), width = 10, height = 5, units = "in", res = 100)
-    
+
     par(mfrow = c(1,2))
     cex1 = 0.9
     plot(sft$fitIndices[,1],
@@ -79,7 +78,7 @@ if (FALSE) {
     dev.off()
 }
 
-# softPower <- sft$powerEstimate 
+# softPower <- sft$powerEstimate
 softPower <- 14
 
 fs::dir_create(glue("../output/WGCNA_global/softPower_{softPower}"))
@@ -134,7 +133,7 @@ dynamicMods <- cutreeDynamic(dendro = geneTree,
                              distM = dissTOM,
                              minClusterSize = minModuleSize)
 
-# length(unique(dynamicMods)) 
+# length(unique(dynamicMods))
 
 # Convert numeric labels into colors
 dynamicColors <- labels2colors(dynamicMods, colorSeq = standardColors())
@@ -184,7 +183,7 @@ moduleColors <- merge$colors
 # Create a data frame with protein_name, Entry, gene_name, moduleColors,
 # and sample abundances as columns
 df.final <- cbind(fData(m3), moduleColors, exprs(m3))
-# dim(df.final) 
+# dim(df.final)
 
 write_xlsx(select(df.final, protein_id:moduleColors), path = glue::glue("{out_path}/RD1a_1-WGCNA_table_softpwr_{softPower}.xlsx"))
 
@@ -281,33 +280,33 @@ m_me <- MSnSet(exprs = t(as.matrix(ME_final)), pData = pData(m3))
 ptype_to_test <- setdiff(varLabels(m_me), c("pid", "bid", "viallabel", "tmt11_channel", "tmt_plex",
                                             "timepoint", "exp_group"))
 
-# res out 
+# res out
 lm_res <- vector("list", length(ptype_to_test))
 names(lm_res) <- ptype_to_test
 
 for (i in ptype_to_test) {
-   lm_res[[i]] <- limma_gen(m_me, paste0("~ ", i), i) %>% 
-      select(logFC, P.Value) %>% 
+   lm_res[[i]] <- limma_gen(m_me, paste0("~ ", i), i) %>%
+      select(logFC, P.Value) %>%
       rownames_to_column()
 }
 
 
-lm_df <- lm_res %>% 
-   enframe() %>% 
-   unnest(value) 
+lm_df <- lm_res %>%
+   enframe() %>%
+   unnest(value)
 
-cor_mat <- lm_df %>% 
-   select(-P.Value) %>% 
-   pivot_wider(names_from = name, values_from = logFC) %>% 
-   column_to_rownames() %>% 
+cor_mat <- lm_df %>%
+   select(-P.Value) %>%
+   pivot_wider(names_from = name, values_from = logFC) %>%
+   column_to_rownames() %>%
    as.matrix()
 
-p_mat <- lm_df %>% 
-   select(-logFC) %>% 
-   pivot_wider(names_from = name, values_from = P.Value) %>% 
-   column_to_rownames() %>% 
-   as.matrix() %>% 
-   p.adjust(method = "BH") %>% 
+p_mat <- lm_df %>%
+   select(-logFC) %>%
+   pivot_wider(names_from = name, values_from = P.Value) %>%
+   column_to_rownames() %>%
+   as.matrix() %>%
+   p.adjust(method = "BH") %>%
    matrix(dim(cor_mat)[[1]], dim(cor_mat)[[2]])
 colnames(p_mat) <- colnames(cor_mat)
 rownames(p_mat) <- rownames(cor_mat)
@@ -397,8 +396,8 @@ ht <- Heatmap(cor_mat,
                           gp = gpar(fontsize = 7))
               })
 
-png(glue::glue("{out_path}/RD1a_5-WGCNA_module_cor_heatmap_sp{softPower}_limma.png"), 
-    width = 4, 
+png(glue::glue("{out_path}/RD1a_5-WGCNA_module_cor_heatmap_sp{softPower}_limma.png"),
+    width = 4,
     height = 3.5,
     units = "in", res = 300)
 draw(ht, heatmap_legend_list = lgd, merge_legends = TRUE)

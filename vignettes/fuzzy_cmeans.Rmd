@@ -10,16 +10,16 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
-
+  
 ```{r, include = FALSE}
-knitr::opts_chunk$set(
+  knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>", 
   fig.width = 6, 
   fig.height = 4
-)
-
-save_plots <- dir.exists(file.path("..", "plots"))
+  )
+  
+  save_plots <- dir.exists(file.path("..", "plots"))
 ```
   
 ```{r setup, warning=FALSE, message=FALSE}
@@ -36,10 +36,10 @@ library(tibble)
 library(tidyr)
 library(TMSig)
 ```
-
-
-# Prepare Input
-
+  
+  
+  # Prepare Input
+  
 ```{r combine-DA-results}
 combined_DA <- list(
   "PROT_GN" = PROT_GN_DA,
@@ -114,7 +114,7 @@ combined_DA <- list(
 
 head(combined_DA)
 ```
-
+  
 ```{r create-eset-list}
 expr_mat <- combined_DA %>% 
   mutate(row_names = paste(ome, featureName)) %>% 
@@ -163,61 +163,55 @@ eset_list <- lapply(c("F", "M"), function(sex_i) {
 }) %>% 
   setNames(c("Female", "Male"))
 
-# Initial hierarchical clustering to define starting centroids for FCM
-f1 <- function(eset, num_clusters) {
-  d <- dist(exprs(eset))
-  
-  hc <- hclust(d = d)
-  clusters <- cutree(tree = hc, k = num_clusters)
-  clusters <- as.factor(as.numeric(clusters))
-  
-  # Compute cluster centroids (mean value by contrast)
-  design_mat <- model.matrix(
-    ~ 0 + clusters
-  )
-  colnames(design_mat) <- levels(clusters)
-  
-  cluster_size <- colSums(design_mat)
-  
-  centroid_mat <- t(design_mat) %*% exprs(eset) / cluster_size
-  
-  return(centroid_mat)
-}
 
 
 FCM <- lapply(names(eset_list), function(sex_i) {
   eset_i <- eset_list[[sex_i]]
+  
   col <- paste0("min_padj_", substr(sex_i, 1L, 1L))
   eset_i_sub <- eset_i[fData(eset_i)[[col]] < 0.05, ]
   
-  # Cluster significant features for a particular sex only. This creates higher
-  # quality centroids, since features that do not change are not included (those
-  # features would cause the centroids to flatten out). 
-  # However, this generates clusters that don't directly input to tools like CAMERA-PR, and so this isn't actually used. 
-  
-  # fcm_1 <- mfuzz(
-  #   eset = eset_i_sub,
-  #   centers = 12L, # number of clusters
-  #   m = 2,
-  #   iter.max = 100L
-  # )
+    #add the 0 columns representing the SED groups
+  non_scaled = exprs(eset_i_sub)
+  # scaled = t(scale(t(exprs(eset_i))))
+  esets_zeros = cbind(rep(0, nrow(non_scaled)),
+                      non_scaled)
+  colnames(esets_zeros) = c("SED", colnames(eset_i))
+
+  eset_cmeans <- ExpressionSet(
+    assayData = esets_zeros, 
+    featureData = AnnotatedDataFrame(fData(eset_i_sub))
+  )
   
   set.seed(0L)
   
   # Calculate membership probabilities for all features
   fcm_2 <- mfuzz(
-    eset = eset_i,
-    centers = f1(eset = eset_i_sub, num_clusters = 12L),
+    eset = eset_cmeans,
+    centers = 4L,
     m = 2,
     iter.max = 1L # more iterations will flatten clusters
   ) %>% 
     reorder_clusters()
+  
+  test1 = Mfuzz::mfuzz.plot2(eset_cmeans,
+                     # mfrow = c(2,2),
+                     ylim.set = c(-6,6),
+                     fcm_2,
+                     min.mem = 0.2,
+                     xlab = "",
+                     ylab = "",
+                     time.labels = colnames(esets_zeros),
+                     single = 1,
+                     x11 = FALSE)
+  
   
   return(fcm_2)
 }) %>% 
   setNames(names(eset_list))
 
 ```
+
 
 ```{r, eval = F}
 ggplot_cmeans(

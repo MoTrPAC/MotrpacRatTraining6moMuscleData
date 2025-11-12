@@ -4,6 +4,7 @@ library(edgeR)
 library(dplyr)
 library(Biobase)
 library(ggplot2)
+library(data.table)
 
 # Matrix of expected counts ----
 counts_GN <- file.path(
@@ -109,7 +110,7 @@ plotMDS(dge_gn, top = 1e5, label = label, col = color, dim.plot = c(1, 3))
 
 
 # Save -> This data object is 45M, it's quite large but not that crazy.
-usethis::use_data(ATAC_GN, overwrite = TRUE, version = 3)
+# usethis::use_data(ATAC_GN, overwrite = TRUE, version = 3)
 
 
 
@@ -208,6 +209,8 @@ ATAC_GN_FIT <- limmaFit(
 
 # Save F-test results for trained vs. SED comparisons
 ATAC_GN_FTest <- limmaDEA(fit = ATAC_GN_FIT, coef = 1:8, test = "F")
+#these files are too large to save as data objects for the package
+# saveRDS(ATAC_GN_FTest, file = "~/Downloads/ATAC_GN_DA_Ftest.rds")
 
 # Clean up contrast columns
 colnames(ATAC_GN_FTest)[grepl("^coef", colnames(ATAC_GN_FTest))] <-
@@ -219,13 +222,15 @@ colnames(ATAC_GN_FTest)[grepl("^coef", colnames(ATAC_GN_FTest))] <-
     )
   )
 
-# write.table(ATAC_GN_FTest, file = file.path("sandbox", "ATAC_GN_FTest.txt"),
-#             quote = FALSE, sep = "\t", row.names = FALSE)
+write.table(ATAC_GN_FTest, file = file.path("sandbox", "ATAC_GN_FTest.txt"),
+            quote = FALSE, sep = "\t", row.names = FALSE)
 
 
 # Differential analysis
 ATAC_GN_DA <- limmaDEA(fit = ATAC_GN_FIT) %>%
   split_by_type()
+#these files are too large to save as data objects for the package
+# saveRDS(ATAC_GN_DA, file = "~/Downloads/ATAC_GN_DA.rds")
 
 # Check p-value histograms
 lapply(ATAC_GN_DA, function(x) {
@@ -270,6 +275,6 @@ lapply(
 )
 
 
-# Save
-usethis::use_data(ATAC_GN_DA_05FDR_norm, overwrite = TRUE, version = 3)
-usethis::use_data(ATAC_GN_DA_10FDR_norm, overwrite = TRUE, version = 3)
+# # Save
+# usethis::use_data(ATAC_GN_DA_05FDR_norm, overwrite = TRUE, version = 3)
+# usethis::use_data(ATAC_GN_DA_10FDR_norm, overwrite = TRUE, version = 3)

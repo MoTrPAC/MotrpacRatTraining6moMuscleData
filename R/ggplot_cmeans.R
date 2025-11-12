@@ -19,6 +19,9 @@ ggplot_cmeans <- function(cl,
                           ncol = 6L,
                           filename,
                           dpi = 200) {
+
+  cluster_specific_sex = ifelse(grep("F", names(zmat)))
+
   mem <- cl$membership[, keep_clusters, drop = FALSE]
   centers <- cl$centers[keep_clusters, , drop = FALSE]
   colnames(mem) <- rownames(centers) <- paste0("Cluster ", colnames(mem))

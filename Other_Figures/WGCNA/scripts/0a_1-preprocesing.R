@@ -1,16 +1,19 @@
 library(MSnSet.utils)
+# devtools::install_github("PNNL-Comp-Mass-Spec/MSnSet.utils")
 library(MotrpacRatTrainingPhysiologyData)
+#devtools::install_github("MoTrPAC/MotrpacRatTrainingPhysiologyData")
+library(MotrpacRatTraining6moMuscleData)
+#this package
 library(tidyverse)
 
 
 # Import ------------------------------------------------------------------
 
 # data from Nick
-load("../data/GLOBAL_NORM_ACETYL_GN.rda")
-load("../data/GLOBAL_NORM_PHOSPHO_GN.rda")
-load("../data/GLOBAL_NORM_REDOX_GN.rda")
-load("../data/PROT_GN.rda")
-
+load("data/ACETYL_GN_NORM.rda")
+load("data/PHOSPHO_GN_NORM.rda")
+load("data/REDOX_GN_NORM.rda")
+load("data/PROT_GN.rda")
 
 # meta data
 my_package <- "MotrpacRatTrainingPhysiologyData"
@@ -51,59 +54,59 @@ identical(pData(m_acet), pData(m_glob))
 
 
 # VO2MAX
-p_vo2max <- VO2MAX %>% 
-   mutate(delta_vo2max_ml_kg_min = post_vo2max_ml_kg_min - pre_vo2max_ml_kg_min) %>% 
+p_vo2max <- VO2MAX %>%
+   mutate(delta_vo2max_ml_kg_min = post_vo2max_ml_kg_min - pre_vo2max_ml_kg_min) %>%
    select(pid, delta_vo2max_ml_kg_min)
 
 # NMR
-p_nmr <- NMR %>% 
+p_nmr <- NMR %>%
    mutate(delta_lean_pct = post_lean_pct - pre_lean_pct,
-          delta_fat_pct = post_fat_pct - pre_fat_pct) %>% 
+          delta_fat_pct = post_fat_pct - pre_fat_pct) %>%
    select(pid, delta_lean_pct, delta_fat_pct)
 
 # ANALYTES
-p_analytes <- ANALYTES %>% 
+p_analytes <- ANALYTES %>%
    select(pid, nefa, glycerol, insulin, corticosterone)
 
 # MUSCLES
-p_muscles <- MUSCLES %>% 
-   select(pid, muscle, glycogen, citrate_synthase, mean_CSA) %>% 
+p_muscles <- MUSCLES %>%
+   select(pid, muscle, glycogen, citrate_synthase, mean_CSA) %>%
    filter(muscle %in% c("LG", "MG")) %>%
    summarise(across(where(is.numeric), \(x){mean(x, na.rm=TRUE)}), .by = "pid")
 
 # FIBER_TYPES
-p_fiber_types <- FIBER_TYPES %>% 
-   select(pid, muscle, type, fiber_area) %>% 
-   filter(muscle %in% c("LG", "MG")) %>% 
-   group_by(pid, type) %>% 
-   summarise(fiber_area_mean = mean(fiber_area, na.rm = TRUE)) %>% 
-   ungroup() %>% 
-   mutate(fiber_area_total = sum(fiber_area_mean, na.rm = TRUE), .by = "pid") %>% 
+p_fiber_types <- FIBER_TYPES %>%
+   select(pid, muscle, type, fiber_area) %>%
+   filter(muscle %in% c("LG", "MG")) %>%
+   group_by(pid, type) %>%
+   summarise(fiber_area_mean = mean(fiber_area, na.rm = TRUE)) %>%
+   ungroup() %>%
+   mutate(fiber_area_total = sum(fiber_area_mean, na.rm = TRUE), .by = "pid") %>%
    mutate(fiber_area_pct = fiber_area_mean/fiber_area_total,
-          type = glue::glue("fiber_type_{type}_area_pct")) %>% 
-   select(pid, type, fiber_area_pct) %>% 
+          type = glue::glue("fiber_type_{type}_area_pct")) %>%
+   select(pid, type, fiber_area_pct) %>%
    pivot_wider(names_from = type, values_from = fiber_area_pct)
-   
-   
+
+
 # combine pdata
-pdata <- p_vo2max %>% 
-   full_join(p_nmr, by = "pid") %>% 
-   full_join(p_analytes, by = "pid") %>% 
-   full_join(p_muscles, by = "pid") %>% 
-   full_join(p_fiber_types, by = "pid") %>% 
-   mutate(across(where(is.numeric), \(x){if_else(is.nan(x), NA, x)})) %>% 
+pdata <- p_vo2max %>%
+   full_join(p_nmr, by = "pid") %>%
+   full_join(p_analytes, by = "pid") %>%
+   full_join(p_muscles, by = "pid") %>%
+   full_join(p_fiber_types, by = "pid") %>%
+   mutate(across(where(is.numeric), \(x){if_else(is.nan(x), NA, x)})) %>%
    select(-mean_CSA, -matches("^fiber_type"))
 
 glimpse(pdata)
 
 
 # add pdata to msnsets
-m_ls <- list(m_glob, m_acet, m_phos, m_ox) %>% 
+m_ls <- list(m_glob, m_acet, m_phos, m_ox) %>%
    map(\(x){
-   pData(x) <- pData(x) %>% 
-      rownames_to_column() %>% 
-      mutate(pid = as.character(pid)) %>% 
-      left_join(pdata, by = "pid") %>% 
+   pData(x) <- pData(x) %>%
+      rownames_to_column() %>%
+      mutate(pid = as.character(pid)) %>%
+      left_join(pdata, by = "pid") %>%
       mutate(bid = as.character(bid)) %>%
       column_to_rownames()
    return(x)

@@ -42,46 +42,30 @@ library(ggvenn)
 
 #Author: Greg Smith, Mt Sinai School of Medicine
 
-setwd("C:/Users/gsmit/Documents/Mount Sinai/Sealfon Laboratory/MoTrPAC/PASS1B Raw Data/LncRNA Project")
-
 # This is the start of Gastroc PASS1B Analysis - Using the RN7 data
 
 # We need the RN7 RNAseq Data for Gastroc, and RN7 ATACseq Data for Gastroc
 
-# Loading the RN7 ATACseq Data
-gastro_atacda <- read.delim(file = "RN7 ATAC DA and Norm Data 032825/pass1b-06_epigen-atac-seq_dea_rn7_pass1b-06_t55-gastrocnemius_epigen-atac-seq_training-dea-limma-ftest_20251703.txt",header = TRUE,sep = "\t",row.names = 1)
-gastro_atacda_time <- read.delim(file = "RN7 ATAC DA and Norm Data 032825/pass1b-06_epigen-atac-seq_dea_rn7_pass1b-06_t55-gastrocnemius_epigen-atac-seq_timewise-dea-deseq2_20250704.txt",header = TRUE,sep = "\t")
+# Loading the RN7 ATACseq Data.
+# These files are too large to keep as data objects, but the code/methods to create them
+# are found in data-raw/
+gastro_atacda = readRDS("~/Downloads/ATAC_GN_DA_Ftest.rds")
+gastro_atacda_timewise = readRDS("~/Downloads/ATAC_GN_DA.rds")
+gastro_atacda_time = gastro_atacda_timewise$trained_vs_SED %>%
+  dplyr::rename(adj_p_value = adj.P.Val)
 
 gastro_atacda_time[is.na(gastro_atacda_time$adj_p_value),"adj_p_value"] <- 1
 
-gastro_atacnorm <- read.delim(file = "RN7 ATAC DA and Norm Data 032825/pass1b-06_epigen-atac-seq_normalized-data_rn7_motrpac_pass1b-06_epigen-atac-seq_t55-gastrocnemius_limma_norm_20251703.tsv",header = TRUE,sep = "\t")
+gastro_atacnorm <- ATAC_GN
 
 # Loading the RN7 RNAseq Data
-load("TRNSCRPT_GN.rda")
-load("TRNSCRPT_GN_DA.rda")
+load("data/TRNSCRPT_GN.rda")
+load("data/TRNSCRPT_GN_DA.rda")
 
 # Loading Homer-identified motif locations within each ATACseq peak
-# This was run outside of R
+# This was run outside of R, and is too large to keep as a raw file in the repository
 allpeakmotifs <- read.table(file = "pass1b_rn7_gastro_allpeak_allmotifs.txt",header = T,sep = "\t")
 
-#gastro_atac_fw1sig <- gastro_atacda_time[gastro_atacda_time$sex %in% "female" & gastro_atacda_time$comparison_group %in% "1w" & gastro_atacda_time$adj_p_value < 0.1,"feature_ID"]
-#gastro_atac_fw2sig <- gastro_atacda_time[gastro_atacda_time$sex %in% "female" & gastro_atacda_time$comparison_group %in% "2w" & gastro_atacda_time$adj_p_value < 0.1,"feature_ID"]
-#gastro_atac_fw4sig <- gastro_atacda_time[gastro_atacda_time$sex %in% "female" & gastro_atacda_time$comparison_group %in% "4w" & gastro_atacda_time$adj_p_value < 0.1,"feature_ID"]
-#gastro_atac_fw8sig <- gastro_atacda_time[gastro_atacda_time$sex %in% "female" & gastro_atacda_time$comparison_group %in% "8w" & gastro_atacda_time$adj_p_value < 0.1,"feature_ID"]
-
-#gastro_atac_mw1sig <- gastro_atacda_time[gastro_atacda_time$sex %in% "male" & gastro_atacda_time$comparison_group %in% "1w" & gastro_atacda_time$adj_p_value < 0.1,"feature_ID"]
-#gastro_atac_mw2sig <- gastro_atacda_time[gastro_atacda_time$sex %in% "male" & gastro_atacda_time$comparison_group %in% "2w" & gastro_atacda_time$adj_p_value < 0.1,"feature_ID"]
-#gastro_atac_mw4sig <- gastro_atacda_time[gastro_atacda_time$sex %in% "male" & gastro_atacda_time$comparison_group %in% "4w" & gastro_atacda_time$adj_p_value < 0.1,"feature_ID"]
-#gastro_atac_mw8sig <- gastro_atacda_time[gastro_atacda_time$sex %in% "male" & gastro_atacda_time$comparison_group %in% "8w" & gastro_atacda_time$adj_p_value < 0.1,"feature_ID"]
-
-#gastro_atac_allsig <- Reduce(union,list(gastro_atac_fw1sig,
-#                                        gastro_atac_fw2sig,
-#                                        gastro_atac_fw4sig,
-#                                        gastro_atac_fw8sig,
-#                                        gastro_atac_mw1sig,
-#                                        gastro_atac_mw2sig,
-#                                        gastro_atac_mw4sig,
-#                                        gastro_atac_mw8sig))
 
 gastro_atac_training_sig <- rownames(gastro_atacda[gastro_atacda$p_value_adj < 0.1,])
 
@@ -394,7 +378,7 @@ for(i in 1:dim(mostvarpeakmotifs)[1]){
 }
 
 # First, we must generate the molecular signature pathway matrix to be used as prior knowledge for PLIER
-# This uses the MOLECULAR SIGNATURES variable in the MotrpacHumanPreSuspension package.
+# This uses the MOLECULAR SIGNATURES variable
 
 ourdatabases <- names(MOLECULAR_SIGNATURES)
 
