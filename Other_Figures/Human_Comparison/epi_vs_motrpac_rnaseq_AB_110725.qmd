@@ -1,7 +1,7 @@
 ---
 title: "Epi vs Motrpac RNAseq"
-author: "Akshay Bareja"
-date: 11/07/2025
+author: "Akshay Bareja, Christopher Jin"
+date: 11/13/2025
 toc: true
 number-sections: true
 format: 
@@ -12,7 +12,7 @@ format:
     embed-resources: true
 execute:
   cache: true
-editor: visual
+editor: source
 ---
 
 ```{r}
@@ -32,6 +32,8 @@ library(plotly)
 library(patchwork)
 library(ggside)
 library(ggrepel)
+
+devtools::load_all()
 ```
 
 ## Background
@@ -75,16 +77,16 @@ rownames(annot) <- annot$GeneID
 
 # import additional metadata from Malene
 EpiTrain_summary_clinical_data <- read_excel("EpiTrain_summary_clinical_data.xlsx", 
-    sheet = "Period 1")
+                                             sheet = "Period 1")
 # Make sure to compare with `sample_metadata`
 
 add_meta <- EpiTrain_summary_clinical_data %>% 
-              dplyr::select(Subject, BMI, `Trained leg`) %>% 
-              dplyr::mutate(Subject = as.character(Subject)) %>%
-              dplyr::mutate(dominant_leg = if_else(str_detect(`Trained leg`,
-                                                          "\\(D\\)$"),
-                                               TRUE, FALSE)) %>% 
-              dplyr::rename(sample_id = Subject)
+  dplyr::select(Subject, BMI, `Trained leg`) %>% 
+  dplyr::mutate(Subject = as.character(Subject)) %>%
+  dplyr::mutate(dominant_leg = if_else(str_detect(`Trained leg`,
+                                                  "\\(D\\)$"),
+                                       TRUE, FALSE)) %>% 
+  dplyr::rename(sample_id = Subject)
 
 sample_metadata <- GSE60590_meta %>% 
   tibble::rownames_to_column("subject") %>% 
@@ -134,10 +136,10 @@ x <- edgeR::DGEList(counts = counts,
 # update samples table
 # concatenate gender and exercise status
 x$samples <- x$samples %>% 
-              data.frame() %>% 
-              tidyr::unite(col = "gender_ex",
-                           c(gender, exercise_status),
-                          remove = FALSE)
+  data.frame() %>% 
+  tidyr::unite(col = "gender_ex",
+               c(gender, exercise_status),
+               remove = FALSE)
 
 # filter out lowly expressed genes
 keep.exprs <- edgeR::filterByExpr(x, group = x$samples$exercise_status) 
@@ -180,10 +182,10 @@ efit_vfit <- limma::eBayes(fit_vfit.cont)
 akshay_gse60590_f_results <- topTable(efit_vfit, 
                                       coef = "women_comp", 
                                       number = nrow(x)) %>% 
-                                tibble::rownames_to_column("GeneID") %>% 
-                                dplyr::mutate(GeneID = as.integer(GeneID)) %>% 
-                                dplyr::left_join(annot[ , 1:2], join_by(GeneID)) %>% 
-                                dplyr::relocate(Symbol, .after = GeneID)
+  tibble::rownames_to_column("GeneID") %>% 
+  dplyr::mutate(GeneID = as.integer(GeneID)) %>% 
+  dplyr::left_join(annot[ , 1:2], join_by(GeneID)) %>% 
+  dplyr::relocate(Symbol, .after = GeneID)
 
 akshay_gse60590_f_results %>% 
   dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>% 
@@ -195,10 +197,10 @@ akshay_gse60590_f_results %>%
 akshay_gse60590_m_results <- topTable(efit_vfit, 
                                       coef = "men_comp", 
                                       number = nrow(x)) %>% 
-                                tibble::rownames_to_column("GeneID") %>% 
-                                dplyr::mutate(GeneID = as.integer(GeneID)) %>% 
-                                dplyr::left_join(annot[ , 1:2], join_by(GeneID)) %>% 
-                                dplyr::relocate(Symbol, .after = GeneID)
+  tibble::rownames_to_column("GeneID") %>% 
+  dplyr::mutate(GeneID = as.integer(GeneID)) %>% 
+  dplyr::left_join(annot[ , 1:2], join_by(GeneID)) %>% 
+  dplyr::relocate(Symbol, .after = GeneID)
 
 akshay_gse60590_m_results %>% 
   dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>% 
@@ -214,47 +216,22 @@ akshay_gse60590_m_results %>%
 #| echo: false
 #| message: false
 #| warning: false
-# load data
-data("TRNSCRPT_GN_DA.rda")
+# load data. See vignettes/differential_analysis for details of how these were generated. 
+data("TRNSCRPT_GN_DA")
 data("RAT_TO_HUMAN_GENE")
 
-rat_to_hum_df <- RAT_TO_HUMAN_GENE %>% 
-                      dplyr::select(RAT_ENSEMBL_ID, HUMAN_ORTHOLOG_NCBI_GENE_ID, HUMAN_ORTHOLOG_SYMBOL) %>% 
-                      tidyr::drop_na() %>% 
-                      dplyr::distinct()
-
 motr_male <- TRNSCRPT_GN_DA[["trained_vs_SED"]] %>% 
-              dplyr::filter(contrast == "M_8W - M_SED") %>% 
-              dplyr::inner_join(
-                rat_to_hum_df,
-                join_by(featureName == RAT_ENSEMBL_ID)
-              ) %>% 
-              dplyr::select(HUMAN_ORTHOLOG_NCBI_GENE_ID, logFC, t, P.Value, adj.P.Val, z, HUMAN_ORTHOLOG_SYMBOL) %>% 
-              tidyr::drop_na() %>% 
-              dplyr::group_by(HUMAN_ORTHOLOG_NCBI_GENE_ID) %>% 
-              dplyr::slice_max(abs(z)) %>% # pick highest abosolute z value per group     
-              dplyr::ungroup() %>% 
-              tibble::column_to_rownames("HUMAN_ORTHOLOG_NCBI_GENE_ID") %>% 
-              dplyr::relocate(z)
+  dplyr::filter(contrast == "M_8W - M_SED") %>%
+  mutate(Symbol = toupper(gene_symbol))
 
 motr_female <- TRNSCRPT_GN_DA[["trained_vs_SED"]] %>% 
-                dplyr::filter(contrast == "F_8W - F_SED") %>% 
-                dplyr::inner_join(
-                rat_to_hum_df,
-                join_by(featureName == RAT_ENSEMBL_ID)
-              ) %>% 
-              dplyr::select(HUMAN_ORTHOLOG_NCBI_GENE_ID, logFC, t, P.Value, adj.P.Val, z, HUMAN_ORTHOLOG_SYMBOL) %>% 
-              tidyr::drop_na() %>% 
-              dplyr::group_by(HUMAN_ORTHOLOG_NCBI_GENE_ID) %>% 
-              dplyr::slice_max(abs(z)) %>% # pick highest abosolute z value per group     
-              dplyr::ungroup() %>% 
-              tibble::column_to_rownames("HUMAN_ORTHOLOG_NCBI_GENE_ID") %>% 
-              dplyr::relocate(z)
+  dplyr::filter(contrast == "F_8W - F_SED") %>%
+  mutate(Symbol = toupper(gene_symbol))
 
 # present results
 motr_female %>% 
   data.frame() %>% 
-  tibble::rownames_to_column("GeneID") %>% 
+  # tibble::rownames_to_column("gene_symbol") %>% 
   dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>% 
   dplyr::arrange(adj.P.Val) %>% 
   DT::datatable(
@@ -263,7 +240,7 @@ motr_female %>%
 
 motr_male %>% 
   data.frame() %>% 
-  tibble::rownames_to_column("GeneID") %>% 
+  # tibble::rownames_to_column("gene_symbol") %>% 
   dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>% 
   dplyr::arrange(adj.P.Val) %>% 
   DT::datatable(
@@ -281,73 +258,60 @@ motr_male %>%
 #| message: false
 #| warning: false
 
-# download and prep gene sets
-# Use MSigDB v2023.2.Hs to be consistent with paper
-c5.all.v2023.2.Hs.entrez <- fgsea::gmtPathways("https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/c5.all.v2023.2.Hs.entrez.gmt")
-c8.all.v2023.2.Hs.entrez <- fgsea::gmtPathways("https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/c8.all.v2023.2.Hs.entrez.gmt")
+# Use the "human_gene_sets" object to be consistent with paper.
+# see "data-raw/gene_sets.R" to see how these were created.
 
-# combine c5 and c8 gene sets
-comb.c5.c8.Hs.entrez <- c(c5.all.v2023.2.Hs.entrez, c8.all.v2023.2.Hs.entrez)
-length(comb.c5.c8.Hs.entrez)
-# 16838
+# process gene sets for the epi project
+background_epi <- unique(akshay_gse60590_f_results$Symbol)
 
-# process gene sets
-background_epi <- unique(rownames(x))
-
-# Restrict genes sets to background of genes
-comb.c5.c8.Hs.entrez_filt <- filterSets(
-    x = comb.c5.c8.Hs.entrez, 
-    background = background_epi, 
-    min_size = 10L # min. overlap of each set with background
-)
-
-#length(comb.c5.c8.Hs.entrez_filt) # 10418 gene sets pass
-
-# Calculate proportion of overlap with background
-setSizes_epi <- lengths(comb.c5.c8.Hs.entrez_filt)
-setSizesOld_epi <- lengths(comb.c5.c8.Hs.entrez)[names(comb.c5.c8.Hs.entrez_filt)]
-overlapProp_epi <- setSizes_epi / setSizesOld_epi
-
-#plot(setSizesOld_epi, overlapProp_epi, main = "Set Size vs. Overlap")
-
-# clusterSets with default arguments
-clusterDF_epi <- clusterSets(x = comb.c5.c8.Hs.entrez_filt, 
+epi_gene_sets <- TMSig::filterSets(x = human_gene_sets, 
+                                   background = background_epi, 
+                                   min_size = 5L,
+                                   max_size = length(background_epi) - 1L)
+# length(epi_gene_sets) #8787
+clusterDF_epi <- clusterSets(x = epi_gene_sets, 
                              type = "jaccard", 
                              cutoff = 0.85, 
                              method = "complete",
                              h = 0.9)
-## Use clusterSets output to select sets to retain for analysis
+#0.630978
+overlapProp_epi <- nrow(clusterDF_epi) / length(background_epi)
+
 clusterDF_epi$overlap_prop <- overlapProp_epi[clusterDF_epi$set] # overlap proportion
 clusterDF_epi$n_char <- nchar(clusterDF_epi$set) # length of set description
 
-# Reorder rows so that the first set in each cluster is the one to keep
 o_epi <- with(clusterDF_epi, 
-          order(cluster, set_size, overlap_prop, n_char, set,
-                decreasing = c(FALSE, TRUE, TRUE, FALSE, TRUE),
-                method = "radix"))
+              order(cluster, set_size, overlap_prop, n_char, set,
+                    decreasing = c(FALSE, TRUE, TRUE, FALSE, TRUE),
+                    method = "radix"))
 clusterDF_epi <- clusterDF_epi[o_epi, ]
 
 # Subset filtered gene sets
-comb.c5.c8.Hs.entrez_filt <- comb.c5.c8.Hs.entrez_filt[with(clusterDF_epi, set[!duplicated(cluster)])]
-
-#length(comb.c5.c8.Hs.entrez_filt) # 10215 gene sets
-
-## camera (see Notes below)
+human_gene_sets_epi_filt <- epi_gene_sets[with(clusterDF_epi, set[!duplicated(cluster)])]
+#length(human_gene_sets_epi_filt) - 8496
 
 ## cameraPR
 ## For limma + voom
 # Matrix of z-score equivalents of moderated t-statistics
-# female
-modz_epi <- with(efit_vfit, zscoreT(x = t, df = df.total))
+modz_epi = with(efit_vfit, zscoreT(x = t, df = df.total)) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("GeneID") %>%
+  mutate(GeneID = as.integer(GeneID)) %>%
+  dplyr::left_join(annot[ , 1:2], join_by(GeneID)) %>%
+  select(-GeneID) %>%
+  tibble::column_to_rownames("Symbol") %>%
+  mutate(across(everything(), as.numeric)) %>%
+  as.matrix()
 
-res_epi <- cameraPR(statistic = modz_epi, 
-                    index = comb.c5.c8.Hs.entrez_filt)
+#this is for male and female, we test/filter the sets on the combined dataset.
 
-epi_camerapr_f <- res_epi %>% 
-                    dplyr::filter(Contrast == "women_comp")
-# male
-epi_camerapr_m <- res_epi %>% 
-                    dplyr::filter(Contrast == "men_comp")
+camera_results = cameraPR(modz_epi,
+                index = human_gene_sets_epi_filt)
+
+epi_camerapr_f = camera_results %>%
+  filter(Contrast == "women_comp")
+epi_camerapr_m = camera_results %>%
+  filter(Contrast == "men_comp")
 
 # present results
 epi_camerapr_f %>% 
@@ -377,53 +341,14 @@ epi_camerapr_m %>%
 #| message: false
 #| warning: false
 
-# process gene sets
-background_motr <- unique(rownames(motr_male))
+# see: vignettes/TRNSCRPT GST for more information on how 
+# gene set testing was done. 
+res_motr_f <- TRNSCRPT_GN_CAMERA$trained_vs_SED %>%
+  dplyr::filter(Contrast == "F_8W - F_SED") 
 
-# Restrict genes sets to background of genes
-comb.c5.c8.Hs.entrez_filt_motr <- filterSets(
-    x = comb.c5.c8.Hs.entrez, 
-    background = background_motr, 
-    min_size = 10L 
-)
-
-#length(comb.c5.c8.Hs.entrez_filt_motr) # 10836 gene sets pass
-
-# Calculate proportion of overlap with background
-setSizes_motr <- lengths(comb.c5.c8.Hs.entrez_filt_motr)
-setSizesOld_motr <- lengths(comb.c5.c8.Hs.entrez)[names(comb.c5.c8.Hs.entrez_filt_motr)]
-overlapProp_motr <- setSizes_motr / setSizesOld_motr
-
-#plot(setSizesOld_motr, overlapProp_motr, main = "Set Size vs. Overlap")
-
-# clusterSets with default arguments
-clusterDF_motr <- clusterSets(x = comb.c5.c8.Hs.entrez_filt_motr, 
-                             type = "jaccard", 
-                             cutoff = 0.85, 
-                             method = "complete",
-                             h = 0.9)
-## Use clusterSets output to select sets to retain for analysis
-clusterDF_motr$overlap_prop <- overlapProp_motr[clusterDF_motr$set] # overlap proportion
-clusterDF_motr$n_char <- nchar(clusterDF_motr$set) # length of set description
-
-# Reorder rows so that the first set in each cluster is the one to keep
-o_motr <- with(clusterDF_motr, 
-          order(cluster, set_size, overlap_prop, n_char, set,
-                decreasing = c(FALSE, TRUE, TRUE, FALSE, TRUE),
-                method = "radix"))
-clusterDF_motr <- clusterDF_motr[o_motr, ]
-
-comb.c5.c8.Hs.entrez_filt_motr <- comb.c5.c8.Hs.entrez_filt_motr[with(clusterDF_motr, set[!duplicated(cluster)])]
-
-#length(comb.c5.c8.Hs.entrez_filt_motr) # 10640 gene sets
-
-## cameraPR
-# female
-res_motr_f <- cameraPR(statistic = as.matrix(motr_female[1]), 
-                      index = comb.c5.c8.Hs.entrez_filt_motr)
 # male
-res_motr_m <- cameraPR(statistic = as.matrix(motr_male[1]), 
-                      index = comb.c5.c8.Hs.entrez_filt_motr)
+res_motr_m <- TRNSCRPT_GN_CAMERA$trained_vs_SED %>%
+  dplyr::filter(Contrast == "M_8W - M_SED") 
 
 # present results
 res_motr_f %>% 
@@ -467,14 +392,14 @@ Comparing t-statistics.
 epi_vs_motr_de_f <- akshay_gse60590_f_results %>% 
   dplyr::inner_join(
     motr_female,
-    join_by(Symbol == HUMAN_ORTHOLOG_SYMBOL),
+    join_by(Symbol),
     suffix = c("_epi", "_motr")
   ) 
 
 cor(epi_vs_motr_de_f$t_epi, epi_vs_motr_de_f$t_motr,
     method = "spearman") # 0.15
 cor.test(epi_vs_motr_de_f$t_epi, epi_vs_motr_de_f$t_motr,
-    method = "spearman") # p-value < 2.2e-16
+         method = "spearman") # p-value < 2.2e-16
 
 epi_vs_motr_de_f_plot <- epi_vs_motr_de_f %>% 
   ggplot(aes(t_epi, t_motr, label = Symbol)) +
@@ -488,35 +413,35 @@ ggplotly(epi_vs_motr_de_f_plot)
 epi_vs_motr_de_m <- akshay_gse60590_m_results %>% 
   dplyr::inner_join(
     motr_male,
-    join_by(Symbol == HUMAN_ORTHOLOG_SYMBOL),
+    join_by(Symbol),
     suffix = c("_epi", "_motr")
   ) 
 
 cor(epi_vs_motr_de_m$t_epi, epi_vs_motr_de_m$t_motr,
-    method = "spearman") # 0.026
+    method = "spearman") # 0.028
 cor.test(epi_vs_motr_de_m$t_epi, epi_vs_motr_de_m$t_motr,
-    method = "spearman") # p-value = 0.007003
+         method = "spearman") # p-value = 0.028
 
 epi_vs_motr_de_m_plot <- epi_vs_motr_de_m %>% 
   ggplot(aes(t_epi, t_motr, label = Symbol)) +
   geom_point() +
   geom_abline(linetype = "dashed") +
   theme_bw() +
-  labs(title = "Epi vs Motrpac - Male (t-stats); Spearman's cor coeff: 0.026")
+  labs(title = "Epi vs Motrpac - Male (t-stats); Spearman's cor coeff: 0.028")
 ggplotly(epi_vs_motr_de_m_plot)
 
 # Epi Female vs Motrpac Male
 epi_vs_motr_de_combo <- epi_vs_motr_de_f %>% 
   dplyr::inner_join(
-  epi_vs_motr_de_m,
-  join_by(Symbol),
-  suffix = c("_f", "_m")
+    epi_vs_motr_de_m,
+    join_by(Symbol),
+    suffix = c("_f", "_m")
   )
 
 cor(epi_vs_motr_de_combo$t_epi_f, epi_vs_motr_de_combo$t_motr_m,
     method = "spearman") # 0.12
 cor.test(epi_vs_motr_de_combo$t_epi_f, epi_vs_motr_de_combo$t_motr_m,
-    method = "spearman") # p-value < 2.2e-16
+         method = "spearman") # p-value < 2.2e-16
 
 epi_vs_motr_combo_fvm_plot <- epi_vs_motr_de_combo %>% 
   ggplot(aes(t_epi_f, t_motr_m, label = Symbol)) +
@@ -530,7 +455,7 @@ ggplotly(epi_vs_motr_combo_fvm_plot)
 cor(epi_vs_motr_de_combo$t_epi_m, epi_vs_motr_de_combo$t_motr_f,
     method = "spearman") # 0.20
 cor.test(epi_vs_motr_de_combo$t_epi_m, epi_vs_motr_de_combo$t_motr_f,
-    method = "spearman") # p-value < 2.2e-16
+         method = "spearman") # p-value < 2.2e-16
 
 epi_vs_motr_combo_mvf_plot <- epi_vs_motr_de_combo %>% 
   ggplot(aes(t_epi_m, t_motr_f, label = Symbol)) +
@@ -584,36 +509,30 @@ motr_fvm_camera <- res_motr_f %>%
 
 # Epi vs Motrpac - female
 epi_v_motr_camera <- epi_fvm_camera %>% 
-                      dplyr::inner_join(
-                        motr_fvm_camera,
-                        join_by(GeneSet),
-                        suffix = c("_epi", "_motr")
-                      ) %>% 
-                      dplyr::filter(str_detect(GeneSet, "^GO"))
+  dplyr::inner_join(
+    motr_fvm_camera,
+    join_by(GeneSet),
+    suffix = c("_epi", "_motr")
+  ) %>% 
+  dplyr::filter(str_detect(GeneSet, "^GO"))
 
-#cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_f_motr) 
-# 0.64 overall
-# 0.65 filtering on GO terms
-# cor.test(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_f_motr)$p.value
-# 0 filtering on GO terms
+# cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_f_motr)
+# 0.56 overall
 
 epi_v_motr_camera_f_plot <-epi_v_motr_camera %>% 
   ggplot(aes(ZScore_f_epi, ZScore_f_motr, label = GeneSet)) +
   geom_point() +
   geom_abline(linetype = "dashed") +
   theme_bw() +
-  labs(title = "Epi vs Motrpac - Female (camera); Pearson's cor coeff: 0.65")
+  labs(title = "Epi vs Motrpac - Female (camera); Pearson's cor coeff: 0.56")
 ggplotly(epi_v_motr_camera_f_plot)
 
 # concordantly upregulated - OXPHOS related terms
 # concordantly downregulated - splicing terms?
 
 # Epi vs Motrpac - male
-#cor(epi_v_motr_camera$ZScore_m_epi, epi_v_motr_camera$ZScore_m_motr) 
-# -0.09 overall
-# -0.10 filtering on GO terms
-# cor.test(epi_v_motr_camera$ZScore_m_epi, epi_v_motr_camera$ZScore_m_motr)$p.value
-# 0 filtering on GO terms
+cor(epi_v_motr_camera$ZScore_m_epi, epi_v_motr_camera$ZScore_m_motr)
+# -0.10 overall
 
 epi_v_motr_camera_m_plot <- epi_v_motr_camera %>% 
   ggplot(aes(ZScore_m_epi, ZScore_m_motr, label = GeneSet)) +
@@ -626,39 +545,31 @@ ggplotly(epi_v_motr_camera_m_plot)
 # Endothelial cell terms seem to be more potently induced in epi
 
 # Epi Female vs Motrpac Male
-#cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_m_motr) 
-# 0.3 overall
-# 0.3 filtering on GO terms
-# cor.test(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_m_motr)$p.value
-# 0 filtering on GO terms
-
+cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_m_motr)
+# 0.256 overall
 epi_v_motr_camera_fvm_plot <-epi_v_motr_camera %>% 
   ggplot(aes(ZScore_f_epi, ZScore_m_motr, label = GeneSet)) +
   geom_point() +
   geom_abline(linetype = "dashed") +
   theme_bw() +
-  labs(title = "Epi Female vs Motrpac Male (camera); Pearson's cor coeff: 0.3")
+  labs(title = "Epi Female vs Motrpac Male (camera); Pearson's cor coeff: 0.256")
 ggplotly(epi_v_motr_camera_fvm_plot)
 
 # Epi Female vs Motrpac Male
-#cor(epi_v_motr_camera$ZScore_m_epi, epi_v_motr_camera$ZScore_f_motr) 
-#  overall
-# 0.48 filtering on GO terms
-#cor.test(epi_v_motr_camera$ZScore_m_epi, epi_v_motr_camera$ZScore_f_motr)$p.value 
-# 0 filtering on GO terms
+cor(epi_v_motr_camera$ZScore_m_epi, epi_v_motr_camera$ZScore_f_motr)
+#  0.43 overall
 
 epi_v_motr_camera_mvf_plot <-epi_v_motr_camera %>% 
   ggplot(aes(ZScore_m_epi, ZScore_f_motr, label = GeneSet)) +
   geom_point() +
   geom_abline(linetype = "dashed") +
   theme_bw() +
-  labs(title = "Epi Male vs Motrpac Female (camera); Pearson's cor coeff: 0.48")
+  labs(title = "Epi Male vs Motrpac Female (camera); Pearson's cor coeff: 0.43")
 ggplotly(epi_v_motr_camera_mvf_plot)
 
 # Epi Female vs Male
-#cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_m_epi) 
-#  overall
-# 0.67 filtering on GO terms
+cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_m_epi)
+#  0.67 overall
 
 epi_v_motr_camera_epi_fvm_plot <- epi_v_motr_camera %>% 
   ggplot(aes(ZScore_f_epi, ZScore_m_epi, label = GeneSet)) +
@@ -669,16 +580,15 @@ epi_v_motr_camera_epi_fvm_plot <- epi_v_motr_camera %>%
 ggplotly(epi_v_motr_camera_epi_fvm_plot)
 
 # Motr Female vs Male
-#cor(epi_v_motr_camera$ZScore_f_motr, epi_v_motr_camera$ZScore_m_motr) 
-#  overall
-# 0.58 filtering on GO terms
+cor(epi_v_motr_camera$ZScore_f_motr, epi_v_motr_camera$ZScore_m_motr)
+#  0.56 overall
 
 epi_v_motr_camera_motr_fvm_plot <-epi_v_motr_camera %>% 
   ggplot(aes(ZScore_f_motr, ZScore_m_motr, label = GeneSet)) +
   geom_point() +
   geom_abline(linetype = "dashed") +
   theme_bw() +
-  labs(title = "Motrpac Male vs Female (camera); Pearson's cor coeff: 0.58")
+  labs(title = "Motrpac Male vs Female (camera); Pearson's cor coeff: 0.56")
 ggplotly(epi_v_motr_camera_motr_fvm_plot)
 ```
 
@@ -691,6 +601,7 @@ ggplotly(epi_v_motr_camera_motr_fvm_plot)
 #| warning: false
 #| include: false
 
+# cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_m_epi) .67
 epi_v_motr_camera %>% 
   ggplot(aes(ZScore_f_epi, ZScore_m_epi, label = GeneSet)) +
   geom_point() +
@@ -698,8 +609,9 @@ epi_v_motr_camera %>%
   geom_ysidedensity(aes(x = after_stat(density)), alpha = 0.5) + 
   geom_abline(linetype = "dashed") +
   theme_bw() +
-  labs(title = "Epi Male vs Female (camera); Pearson's cor coeff: 0.65")
+  labs(title = "Epi Male vs Female (camera); Pearson's cor coeff: 0.67")
 
+# cor(epi_v_motr_camera$ZScore_f_motr, epi_v_motr_camera$ZScore_m_motr) 
 epi_v_motr_camera %>% 
   ggplot(aes(ZScore_f_motr, ZScore_m_motr, label = GeneSet)) +
   geom_point() +
@@ -707,7 +619,7 @@ epi_v_motr_camera %>%
   geom_ysidedensity(aes(x = after_stat(density)), alpha = 0.5) + 
   geom_abline(linetype = "dashed") +
   theme_bw() +
-  labs(title = "Motrpac Male vs Female (camera); Pearson's cor coeff: 0.58")
+  labs(title = "Motrpac Male vs Female (camera); Pearson's cor coeff: 0.56")
 ```
 
 ## Figures for manuscript
@@ -719,10 +631,10 @@ epi_v_motr_camera %>%
 #| warning: false
 
 # Spearman correlation coefficients
-cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_f_motr, method = "spearman") # 0.49
-cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_m_motr, method = "spearman") # 0.015
-cor(epi_v_motr_camera$ZScore_m_epi, epi_v_motr_camera$ZScore_f_motr, method = "spearman") # 0.48
-cor(epi_v_motr_camera$ZScore_m_epi, epi_v_motr_camera$ZScore_m_motr, method = "spearman") # -0.20
+cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_f_motr, method = "spearman") # 0.41
+cor(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_m_motr, method = "spearman") # 0.03
+cor(epi_v_motr_camera$ZScore_m_epi, epi_v_motr_camera$ZScore_f_motr, method = "spearman") # 0.42
+cor(epi_v_motr_camera$ZScore_m_epi, epi_v_motr_camera$ZScore_m_motr, method = "spearman") # -0.16
 
 # p-values
 cor.test(epi_v_motr_camera$ZScore_f_epi, epi_v_motr_camera$ZScore_f_motr, method = "spearman") # p-value < 2.2e-16
@@ -754,7 +666,7 @@ f_v_f <- epi_v_motr_camera %>%
   geom_abline(linetype = "dashed") +
   theme_bw() +
   labs(title = "EpiTrain Female vs MoTrPAC Female",
-       subtitle = "Spearman's cor coeff: 0.49\np-value < 2.2e-16",
+       subtitle = "Spearman's cor coeff: 0.41\np-value < 2.2e-16",
        x = "EpiTrain Female (Z-score)",
        y = "MoTrPAC Female (Z-score)") +
   theme(ggside.panel.scale.x = .2,
@@ -780,7 +692,7 @@ f_v_m <- epi_v_motr_camera %>%
   geom_abline(linetype = "dashed") +
   theme_bw() +
   labs(title = "EpiTrain Female vs MoTrPAC Male",
-       subtitle = "Spearman's cor coeff: 0.015\np-value = 0.263",
+       subtitle = "Spearman's cor coeff: 0.03\np-value = 0.263",
        x = "EpiTrain Female (Z-score)",
        y = "MoTrPAC Male (Z-score)") +
   theme(ggside.panel.scale.x = .2,
@@ -806,7 +718,7 @@ m_v_f <- epi_v_motr_camera %>%
   geom_abline(linetype = "dashed") +
   theme_bw() +
   labs(title = "EpiTrain Male vs MoTrPAC Female",
-       subtitle = "Spearman's cor coeff: 0.48\np-value < 2.2e-16",
+       subtitle = "Spearman's cor coeff: 0.42\np-value < 2.2e-16",
        x = "EpiTrain Male (Z-score)",
        y = "MoTrPAC Female (Z-score)") +
   theme(ggside.panel.scale.x = .2,
@@ -832,7 +744,7 @@ m_v_m <- epi_v_motr_camera %>%
   geom_abline(linetype = "dashed") +
   theme_bw() +
   labs(title = "EpiTrain Male vs MoTrPAC Male",
-       subtitle = "Spearman's cor coeff: -0.20\np-value < 2.2e-16",
+       subtitle = "Spearman's cor coeff: -0.16\np-value < 2.2e-16",
        x = "EpiTrain Male (Z-score)",
        y = "MoTrPAC Male (Z-score)") +
   theme(ggside.panel.scale.x = .2,
@@ -845,8 +757,8 @@ m_v_m <- epi_v_motr_camera %>%
                                  size = 10))
 
 manuscript_plot <- (f_v_f + f_v_m) /
-                      (m_v_f + m_v_m) +
-                         patchwork::plot_annotation(tag_levels = "A")
+  (m_v_f + m_v_m) +
+  patchwork::plot_annotation(tag_levels = "A")
 
 manuscript_plot
 # ggsave(filename = "figures/camera_plot_for_manuscript_AB_082825.png",
@@ -854,7 +766,7 @@ manuscript_plot
 #        width = 15,
 #        height = 15)
 
-ggsave(filename = "figures/camera_plot_for_manuscript_AB_110725.png",
+ggsave(filename = "figures/camera_plot_for_manuscript_AB_CJ_111325.png",
        plot = manuscript_plot,
        width = 15,
        height = 15)
@@ -866,96 +778,20 @@ Figure 6. Comparison of transcriptomic responses to exercise in humans and rats 
 
 ## Motrpac (Proteomics)
 
-```{r}
+```{r, eval = T}
 #| label: motr-prot
 #| echo: false
 #| message: false
 #| warning: false
 # load data
-load("data/PROT_GN_DA.rda")
 
-rat_to_hum_df_prot <- RAT_TO_HUMAN_GENE %>% 
-                      dplyr::select(RAT_SYMBOL, RAT_ENSEMBL_ID, HUMAN_ORTHOLOG_NCBI_GENE_ID, HUMAN_ORTHOLOG_SYMBOL) %>% 
-                      tidyr::drop_na() %>% 
-                      dplyr::distinct()
+# PROT_GN_CAMERA -> see vignettes/Prot GN GST for how this is created
 
-motr_male_prot <- PROT_GN_DA[["trained_vs_SED"]] %>% 
-              dplyr::filter(contrast == "M_8W - M_SED") %>% 
-              dplyr::inner_join(
-                rat_to_hum_df_prot,
-                join_by(gene_symbol == RAT_SYMBOL)
-              ) %>% 
-              dplyr::select(HUMAN_ORTHOLOG_NCBI_GENE_ID, logFC, t, P.Value, adj.P.Val, z, HUMAN_ORTHOLOG_SYMBOL) %>% 
-              tidyr::drop_na() %>% 
-              dplyr::group_by(HUMAN_ORTHOLOG_NCBI_GENE_ID) %>% 
-              dplyr::slice_max(abs(z)) %>% # pick highest abosolute z value per group     
-              dplyr::ungroup() %>% 
-              dplyr::distinct() %>% 
-              tibble::column_to_rownames("HUMAN_ORTHOLOG_NCBI_GENE_ID") %>% 
-              dplyr::relocate(z)
+res_motr_m_prot = PROT_GN_CAMERA$trained_vs_SED  %>% 
+  dplyr::filter(Contrast == "M_8W - M_SED")
 
-motr_female_prot <- PROT_GN_DA[["trained_vs_SED"]] %>% 
-                dplyr::filter(contrast == "F_8W - F_SED") %>% 
-                dplyr::inner_join(
-                rat_to_hum_df_prot,
-                join_by(gene_symbol == RAT_SYMBOL)
-              ) %>% 
-              dplyr::select(HUMAN_ORTHOLOG_NCBI_GENE_ID, logFC, t, P.Value, adj.P.Val, z, HUMAN_ORTHOLOG_SYMBOL) %>% 
-              tidyr::drop_na() %>% 
-              dplyr::group_by(HUMAN_ORTHOLOG_NCBI_GENE_ID) %>% 
-              dplyr::slice_max(abs(z)) %>% # pick highest abosolute z value per group     
-              dplyr::ungroup() %>% 
-              dplyr::distinct() %>% 
-              tibble::column_to_rownames("HUMAN_ORTHOLOG_NCBI_GENE_ID") %>% 
-              dplyr::relocate(z)
-
-# process gene sets
-background_motr_prot <- unique(c(rownames(motr_male_prot), rownames(motr_male_prot)))
-
-# Restrict genes sets to background of genes
-comb.c5.c8.Hs.entrez_filt_motr_prot <- filterSets(
-    x = comb.c5.c8.Hs.entrez, 
-    background = background_motr_prot, 
-    min_size = 10L 
-)
-
-#length(comb.c5.c8.Hs.entrez_filt_motr_prot) # 7328 gene sets pass
-
-# Calculate proportion of overlap with background
-setSizes_motr_prot <- lengths(comb.c5.c8.Hs.entrez_filt_motr_prot)
-setSizesOld_motr_prot <- lengths(comb.c5.c8.Hs.entrez)[names(comb.c5.c8.Hs.entrez_filt_motr_prot)]
-overlapProp_motr_prot <- setSizes_motr_prot / setSizesOld_motr_prot
-
-#plot(setSizesOld_motr_prot, overlapProp_motr_prot, main = "Set Size vs. Overlap")
-
-# clusterSets with default arguments
-clusterDF_motr_prot <- clusterSets(x = comb.c5.c8.Hs.entrez_filt_motr_prot, 
-                             type = "jaccard", 
-                             cutoff = 0.85, 
-                             method = "complete",
-                             h = 0.9)
-## Use clusterSets output to select sets to retain for analysis
-clusterDF_motr_prot$overlap_prop <- overlapProp_motr_prot[clusterDF_motr_prot$set] # overlap proportion
-clusterDF_motr_prot$n_char <- nchar(clusterDF_motr_prot$set) # length of set description
-
-# Reorder rows so that the first set in each cluster is the one to keep
-o_motr_prot <- with(clusterDF_motr_prot, 
-          order(cluster, set_size, overlap_prop, n_char, set,
-                decreasing = c(FALSE, TRUE, TRUE, FALSE, TRUE),
-                method = "radix"))
-clusterDF_motr_prot <- clusterDF_motr_prot[o_motr_prot, ]
-
-comb.c5.c8.Hs.entrez_filt_motr_prot <- comb.c5.c8.Hs.entrez_filt_motr_prot[with(clusterDF_motr_prot, set[!duplicated(cluster)])]
-
-#length(comb.c5.c8.Hs.entrez_filt_motr_prot) # 7072 gene sets
-
-## cameraPR
-# female
-res_motr_f_prot <- cameraPR(statistic = as.matrix(motr_female_prot[1]), 
-                      index = comb.c5.c8.Hs.entrez_filt_motr_prot)
-# male
-res_motr_m_prot <- cameraPR(statistic = as.matrix(motr_male_prot[1]), 
-                      index = comb.c5.c8.Hs.entrez_filt_motr_prot)
+res_motr_f_prot = PROT_GN_CAMERA$trained_vs_SED  %>% 
+  dplyr::filter(Contrast == "F_8W - F_SED") 
 
 # present results
 res_motr_f_prot %>% 
@@ -975,7 +811,7 @@ res_motr_m_prot %>%
 
 ### MotrPac RNAseq vs Proteomics (cameraPR)
 
-```{r}
+```{r,}
 #| label: motr-rnaseq-vs-prot
 #| echo: false
 #| message: false
@@ -990,9 +826,8 @@ motr_rna_v_prot_f <- res_motr_f %>%
   ) %>% 
   dplyr::filter(str_detect(GeneSet, "^GO"))
 
-# cor(motr_rna_v_prot_f$ZScore_rnaseq, motr_rna_v_prot_f$ZScore_prot) 
-# 0.67 overall
-# 0.66 filtering on GO terms
+# cor(motr_rna_v_prot_f$ZScore_rnaseq, motr_rna_v_prot_f$ZScore_prot)
+# 0.61 overall
 
 motr_rna_v_prot_f_plot <- motr_rna_v_prot_f %>% 
   ggplot(aes(ZScore_rnaseq, ZScore_prot, label = GeneSet)) +
@@ -1000,7 +835,7 @@ motr_rna_v_prot_f_plot <- motr_rna_v_prot_f %>%
   geom_abline(linetype = "dashed") +
   theme_bw() +
   labs(title = "Motrpac Female - RNAseq vs Proteomics (camera)",
-       subtitle = "Correlation coefficient: 0.67")
+       subtitle = "Correlation coefficient: 0.61")
 ggplotly(motr_rna_v_prot_f_plot)
 
 motr_rna_v_prot_m <- res_motr_m %>% 
@@ -1011,9 +846,8 @@ motr_rna_v_prot_m <- res_motr_m %>%
   ) %>% 
   dplyr::filter(str_detect(GeneSet, "^GO"))
 
-# cor(motr_rna_v_prot_m$ZScore_rnaseq, motr_rna_v_prot_m$ZScore_prot) 
-# 0.48 overall
-# 0.47 filtering on GO terms
+# cor(motr_rna_v_prot_m$ZScore_rnaseq, motr_rna_v_prot_m$ZScore_prot)
+# 0.41 overall
 
 motr_rna_v_prot_m_plot <- motr_rna_v_prot_m %>% 
   ggplot(aes(ZScore_rnaseq, ZScore_prot, label = GeneSet)) +
@@ -1021,6 +855,6 @@ motr_rna_v_prot_m_plot <- motr_rna_v_prot_m %>%
   geom_abline(linetype = "dashed") +
   theme_bw() +
   labs(title = "Motrpac Male - RNAseq vs Proteomics (camera)",
-       subtitle = "Correlation coefficient: 0.48")
+       subtitle = "Correlation coefficient: 0.41")
 ggplotly(motr_rna_v_prot_m_plot)
 ```

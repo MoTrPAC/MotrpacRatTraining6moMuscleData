@@ -56,7 +56,7 @@ gastro_atacda_time = gastro_atacda_timewise$trained_vs_SED %>%
 
 gastro_atacda_time[is.na(gastro_atacda_time$adj_p_value),"adj_p_value"] <- 1
 
-gastro_atacnorm <- ATAC_GN
+gastro_atacnorm <- exprs(ATAC_GN)
 
 # Loading the RN7 RNAseq Data
 load("data/TRNSCRPT_GN.rda")
@@ -64,15 +64,14 @@ load("data/TRNSCRPT_GN_DA.rda")
 
 # Loading Homer-identified motif locations within each ATACseq peak
 # This was run outside of R, and is too large to keep as a raw file in the repository
-allpeakmotifs <- read.table(file = "pass1b_rn7_gastro_allpeak_allmotifs.txt",header = T,sep = "\t")
-
-
+allpeakmotifs <- read.table(file = "data-raw/pass1b_rn7_gastro_allpeak_allmotifs.txt",header = T,sep = "\t")
 gastro_atac_training_sig <- rownames(gastro_atacda[gastro_atacda$p_value_adj < 0.1,])
 
 gastro_atac_allmeta <- data.frame(row.names = rownames(gastro_atacnorm),
                                   "Chr" = gsub("chr","",gsub(":.*","",rownames(gastro_atacnorm))),
                                   "Start" = as.numeric(gsub(".*:","",gsub("-.*","",rownames(gastro_atacnorm)))),
                                   "End" = as.numeric(gsub(".*-","",rownames(gastro_atacnorm))))
+
 gastro_atac_allmeta$Mid <- (gastro_atac_allmeta$Start + gastro_atac_allmeta$End)/2
 gastro_atac_all_peak <- GRanges(seqnames = paste("chr",gastro_atac_allmeta$Chr,sep = ""), ranges = IRanges(gastro_atac_allmeta$Start, gastro_atac_allmeta$End))
 gastro_atac_all_peakAnno <- annotatePeak(gastro_atac_all_peak,tssRegion=c(-2000,1000),TxDb = txdb,annoDb="org.Rn.eg.db")

@@ -95,7 +95,7 @@ The gene sets cover about `r round(coverage * 100, 1)`% of the unique genes in t
 We will now try to reduce the redundancy of the sets. First, we will identify clusters of highly similar sets based on their Jaccard coefficients. Within each cluster, we will keep the largest set. Ties will be broken by selecting the set that was most similar to its human counterpart (ratio closest to 1), then the set with the shortest description, and finally according to alphanumeric order.
 
 ```{r}
-trnscrpt_cluster_df <- cluster_sets(trnscrpt_GN_gene_sets) %>% 
+trnscrpt_cluster_df <- TMSig::clusterSets(trnscrpt_GN_gene_sets) %>% 
   mutate(ratio = r[set],
          diff = abs(1 - ratio),
          n_char = nchar(set)) %>% 
