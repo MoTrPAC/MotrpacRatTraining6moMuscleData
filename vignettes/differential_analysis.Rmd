@@ -24,7 +24,7 @@ knitr::opts_chunk$set(
 ```{r setup, message=FALSE, warning=FALSE}
 # Required packages
 library(MotrpacRatTraining6moMuscleData)
-library(limmaTesting) # limmaFit, limmaDEA
+# library(limmaTesting) # limmaFit, limmaDEA
 library(Biobase)
 library(dplyr)
 library(ggplot2)
