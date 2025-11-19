@@ -140,36 +140,35 @@ REDOX_GN <- ExpressionSet(
 PROT_GN_temp <- PROT_GN_temp[, !grepl("_TT_", sampleNames(PROT_GN_temp))]
 REDOX_GN <- REDOX_GN[, !grepl("_TT_", sampleNames(REDOX_GN))]
 
-## Normalize redox samples by scaled global medians ----
+# ## Normalize redox samples by scaled global medians ----
 # foo1 <- normalize_redox(m_redox = REDOX_GN,
 #                         m_global = PROT_GN_temp,
 #                         plexID = "tmt_plex")
-
-
-## Correct by global + median-MAD normalize
-foo1 <- foo2 <- REDOX_GN
-
-exprs(foo1) <- sweep(exprs(foo1),
-  MARGIN = 2,
-  STATS = apply(exprs(PROT_GN_temp),
-    2, median,
-    na.rm = TRUE
-  ),
-  FUN = "-"
-)
-
-boxplot(exprs(foo1))
-
-exprs(foo1) <- normalize_data(exprs(foo1), mad = TRUE)
-boxplot(exprs(foo1))
-
-
-exprs(foo2) <- normalize_data(exprs(foo2), mad = TRUE)
-boxplot(exprs(foo2))
+#
+#
+# ## Correct by global + median-MAD normalize
+# foo1 <- foo2 <- REDOX_GN
+#
+# exprs(foo1) <- sweep(exprs(foo1),
+#   MARGIN = 2,
+#   STATS = apply(exprs(PROT_GN_temp),
+#     2, median,
+#     na.rm = TRUE
+#   ),
+#   FUN = "-"
+# )
+#
+# boxplot(exprs(foo1))
+#
+# exprs(foo1) <- normalize_data(exprs(foo1), mad = TRUE)
+# boxplot(exprs(foo1))
+#
+#
+# exprs(foo2) <- normalize_data(exprs(foo2), mad = TRUE)
+# boxplot(exprs(foo2))
 
 
 exprs(REDOX_GN) <- normalize_data(exprs(REDOX_GN), mad = TRUE)
-
 
 # Correct for TMT plex batch effect ----
 plotMDS(exprs(REDOX_GN)) # clear separation by plex
@@ -189,6 +188,7 @@ plotMDS(exprs(REDOX_GN),
   label = label,
   col = plot_color
 )
+
 # Samples no longer cluster by plex, and there are no apparent outliers. Some
 # timepoint and sex separation.
 

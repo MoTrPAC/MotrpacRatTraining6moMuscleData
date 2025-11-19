@@ -1,8 +1,8 @@
 Package: MotrpacRatTraining6moMuscleData
 Type: Package
 Title: Analysis of MoTrPAC Rat Skeletal Muscle -Omics Data
-Version: 0.1.0.9004
-Date: 2025-11-03
+Version: 0.1.1.0
+Date: 2025-11-19
 Authors@R: 
     c(person(given = "Christopher", family = "Jin",
              email = "cajin@stanford.edu",

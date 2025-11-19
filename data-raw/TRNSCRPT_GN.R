@@ -28,7 +28,8 @@ colnames(counts_GN) <- sub("^X", "", colnames(counts_GN))
 mart <- useEnsembl(
   biomart = "genes",
   dataset = "rnorvegicus_gene_ensembl",
-  version = 110
+  # version = 110,
+  mirror = "useast"
 ) # mRatBN7.2
 
 # datasets <- listDatasets(mart)
@@ -61,10 +62,10 @@ f_data <- getBM(
   `rownames<-`(.[["ensembl_gene_id"]])
 
 prop.table(table(grepl("^LOC", f_data$gene_symbol)))
-# ~15% of the genes begin with "LOC"
+# ~11% of the genes begin with "LOC"
 
 prop.table(table(is.na(f_data$gene_symbol)))
-# ~14% of the genes are missing
+# ~4% of the genes are missing
 
 
 ## Sample data ----
@@ -102,7 +103,7 @@ p_data <- MotrpacRatTraining6moMuscleData:::SKM_PHENO %>%
 
 # Remove internal standard columns
 counts_GN <- counts_GN[, rownames(p_data)]
-
+counts_GN = counts_GN[f_data$ensembl_gene_id,]
 
 # Remove low-count transcripts ----
 # Following 10.12688/f1000research.9005.3

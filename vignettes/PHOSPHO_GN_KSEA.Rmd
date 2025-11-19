@@ -113,7 +113,7 @@ table(unique(unlist(human_kinase_sets)) %in% background)
 Only 848 human sites in the background (~8.6%) are known to be phosphorylated by at least one kinase.
 
 ```{r}
-phospho_GN_kinase_sets <- filter_sets(human_kinase_sets,
+phospho_GN_kinase_sets <- TMSig::filterSets(human_kinase_sets,
                                       background = background,
                                       min_size = 3L,
                                       max_size = length(background) - 1L)
@@ -138,7 +138,7 @@ Most kinases have few sites.
 
 We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
 
-```{r eval=FALSE, message=FALSE, warning=FALSE}
+```{r eval=TRUE, message=FALSE, warning=FALSE}
 PHOSPHO_GN_FGSEA <- lapply(phospho_GN_stats, function(x) {
   lapply(colnames(x), function(contrast_i) {
     
@@ -191,7 +191,7 @@ head(PHOSPHO_GN_FGSEA$trained_vs_SED)
 
 We will also perform Correlation Adjusted MEan RAnk gene set testing (CAMERA) with `TMSig::cameraPR.matrix`, a fast matrix method for `limma::cameraPR`.
 
-```{r eval=FALSE, message=FALSE}
+```{r eval=TRUE, message=FALSE}
 # CAMERA (pre-ranked)
 PHOSPHO_GN_CAMERA <- lapply(phospho_GN_stats, function(x) {
   cameraPR(statistic = x,
@@ -221,7 +221,7 @@ head(PHOSPHO_GN_CAMERA$trained_vs_SED)
 ```
 
 
-```{r eval=FALSE}
+```{r eval=TRUE}
 # Save results
 usethis::use_data(phospho_GN_kinase_sets, overwrite = TRUE, version = 3)
 usethis::use_data(PHOSPHO_GN_FGSEA, overwrite = TRUE, version = 3)

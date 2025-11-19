@@ -1,20 +1,19 @@
 library(MotrpacRatTraining6moMuscleData)
 library(dplyr)
 library(TMSig)
-library(clustifyr)
+library(fgsea)
 library(here)
 
-## C5 GO:BP subcollection (v2023.2.Hs built on Ensembl 110 gene symbols).
-## Downloaded from https://www.gsea-msigdb.org/gsea/msigdb/human/collections.jsp
-human_gene_sets <- file.path(
-  here(),
-  "data-raw",
-  c(
-    "c5.go.v2023.2.Hs.symbols.gmt",
-    "c8.all.v2023.2.Hs.symbols.gmt"
-  )
-) %>%
-  lapply(gmt_to_list) %>%
+
+c5.go.v2023.2.Hs.symbols <- fgsea::gmtPathways(
+  "https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/c5.go.v2023.2.Hs.symbols.gmt"
+)
+c8.all.v2023.2.Hs.symbols <- fgsea::gmtPathways(
+  "https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/c8.all.v2023.2.Hs.symbols.gmt"
+)
+
+human_gene_sets <- list(c5.go.v2023.2.Hs.symbols,
+                        c8.all.v2023.2.Hs.symbols) %>%
   setNames(c("C5_GO", "C8"))
 
 lengths(human_gene_sets)
@@ -51,8 +50,8 @@ rat_gene_sets <- data.frame(
   stringsAsFactors = FALSE
 ) %>%
   left_join(conv_tbl,
-    by = "human_gene_symbol",
-    relationship = "many-to-many"
+            by = "human_gene_symbol",
+            relationship = "many-to-many"
   ) %>%
   filter(!is.na(rat_gene_symbol)) %>%
   distinct() %>%
@@ -70,8 +69,8 @@ human_set_sizes <- lengths(human_gene_sets)[names(rat_gene_sets)]
 ortholog_ratio <- rat_set_sizes / human_set_sizes
 
 hist(ortholog_ratio,
-  breaks = seq(0, 1.4, 0.05),
-  main = NULL, xlab = "Rat Set Size / Human Set Size"
+     breaks = seq(0, 1.4, 0.05),
+     main = NULL, xlab = "Rat Set Size / Human Set Size"
 )
 
 

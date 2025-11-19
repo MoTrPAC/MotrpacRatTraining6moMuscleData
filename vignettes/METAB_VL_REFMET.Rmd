@@ -87,7 +87,7 @@ vapply(metab_VL_stats, function(x) mean(duplicated(x)), numeric(1L))
 
 We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
 
-```{r eval=FALSE, message=FALSE, warning=FALSE}
+```{r eval=TRUE, message=FALSE, warning=FALSE}
 METAB_VL_FGSEA <- lapply(metab_VL_stats, function(x) {
   lapply(colnames(x), function(contrast_i) {
     
@@ -140,7 +140,7 @@ head(METAB_VL_FGSEA$trained_vs_SED)
 
 We will also perform Correlation Adjusted MEan RAnk gene set testing (CAMERA) with `TMSig::cameraPR.matrix`, a fast matrix method for `limma::cameraPR`.
 
-```{r eval=FALSE, message=FALSE}
+```{r eval=TRUE, message=FALSE}
 # CAMERA (pre-ranked)
 METAB_VL_CAMERA <- lapply(metab_VL_stats, function(x) {
   cameraPR(statistic = x, 
@@ -167,7 +167,7 @@ head(METAB_VL_CAMERA$trained_vs_SED)
 ```
 
 
-```{r eval=FALSE}
+```{r eval=TRUE}
 # Save results
 usethis::use_data(metab_VL_refmet_sets, overwrite = TRUE, version = 3)
 usethis::use_data(METAB_VL_FGSEA, overwrite = TRUE, version = 3)

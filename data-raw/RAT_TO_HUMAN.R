@@ -1,8 +1,8 @@
 ## Convert from rat gene symbols to human gene symbols
-
 library(babelgene) # v22.9
 library(Biobase)
 library(MotrpacRatTraining6moMuscleData)
+library(dplyr)
 
 # Rat gene symbols from all -omics datasets
 rat_genes <- c(

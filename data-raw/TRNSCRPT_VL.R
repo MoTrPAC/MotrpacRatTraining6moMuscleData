@@ -28,7 +28,8 @@ colnames(counts_VL) <- sub("^X", "", colnames(counts_VL))
 mart <- useEnsembl(
   biomart = "genes",
   dataset = "rnorvegicus_gene_ensembl",
-  version = 110
+  # version = 110,
+  mirror = "useast"
 ) # mRatBN7.2
 
 # datasets <- listDatasets(mart)
@@ -98,6 +99,7 @@ p_data <- MotrpacRatTraining6moMuscleData:::SKM_PHENO %>%
 
 # Correct sample order
 counts_VL <- counts_VL[, rownames(p_data)]
+counts_VL = counts_VL[f_data$ensembl_gene_id,]
 
 
 # Remove low-count transcripts ----
@@ -110,7 +112,7 @@ dge_vl <- DGEList(
 )
 
 keep <- filterByExpr(dge_vl)
-table(keep) # 14176 kept. 16384 discarded.
+table(keep) # 13014 kept. 10240 discarded.
 dge_vl <- dge_vl[keep, , keep.lib.sizes = FALSE]
 
 # Calculate library size normalization factors
@@ -162,7 +164,7 @@ TRNSCRPT_VL <- ExpressionSet(
   featureData = featureData
 )
 
-dim(TRNSCRPT_VL) # 14176 features, 48 samples
+dim(TRNSCRPT_VL) # 13014 features, 48 samples
 
 
 # Save

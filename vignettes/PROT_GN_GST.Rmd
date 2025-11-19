@@ -48,7 +48,7 @@ length(background) # 5932
 ```
 
 ```{r}
-prot_GN_gene_sets <- filterSets(rat_gene_sets, 
+prot_GN_gene_sets <- TMSig::filterSets(rat_gene_sets, 
                                 background = background, 
                                 min_size = 5L, 
                                 max_size = length(background) - 1L)
@@ -99,7 +99,7 @@ We will now try to reduce the redundancy of the sets. First, we will identify cl
 For the GO gene sets, sets may be clustered together if $J \geq 0.85$.
 
 ```{r}
-prot_cluster_df <- cluster_sets(prot_GN_gene_sets) %>% 
+prot_cluster_df <- TMSig::clusterSets(prot_GN_gene_sets) %>% 
   mutate(diff = abs(1 - r[set]),
          n_char = nchar(set)) %>% 
   arrange(cluster, -set_size, diff, n_char, set)
@@ -215,7 +215,7 @@ vapply(prot_GN_stats, function(x) mean(duplicated(x)), numeric(1L))
 
 We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
 
-```{r eval=FALSE, message=FALSE, warning=FALSE}
+```{r eval=TRUE, message=FALSE, warning=FALSE}
 PROT_GN_FGSEA <- lapply(prot_GN_stats, function(x) {
   lapply(colnames(x), function(contrast_i) {
     
@@ -276,7 +276,7 @@ head(PROT_GN_FGSEA$trained_vs_SED)
 
 We will also perform Correlation Adjusted MEan RAnk gene set testing (CAMERA) with `TMSig::cameraPR.matrix`, a fast matrix method for `limma::cameraPR`.
 
-```{r eval=FALSE, message=FALSE}
+```{r eval=TRUE, message=FALSE}
 # CAMERA (pre-ranked)
 PROT_GN_CAMERA <- lapply(prot_GN_stats, function(x) {
   cameraPR(statistic = x, 
@@ -310,7 +310,7 @@ lapply(PROT_GN_CAMERA, function(x) with(x, table(Contrast, PAdj < 0.05)))
 head(PROT_GN_CAMERA$trained_vs_SED)
 ```
 
-```{r eval=FALSE}
+```{r eval=TRUE}
 # Save results
 usethis::use_data(prot_GN_gene_sets, overwrite = TRUE, version = 3)
 usethis::use_data(PROT_GN_REDUNDANT_SETS, overwrite = TRUE, version = 3)

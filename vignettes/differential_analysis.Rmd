@@ -10,7 +10,7 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
-
+  
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -23,11 +23,12 @@ knitr::opts_chunk$set(
 
 ```{r setup, message=FALSE, warning=FALSE}
 # Required packages
-library(MotrpacRatTraining6moMuscleData)
-# library(limmaTesting) # limmaFit, limmaDEA
 library(Biobase)
 library(dplyr)
 library(ggplot2)
+
+devtools::load_all() #for limmaFit, limmaDEA
+save_files = TRUE
 ```
 
 We will test two types of contrasts: sex-matched trained vs. sedentary comparisons and male vs. female comparisons at SED and 8W.
@@ -114,6 +115,8 @@ PROT_GN_FIT <- limmaFit(object = PROT_GN,
 # Differential analysis
 PROT_GN_DA <- limmaDEA(fit = PROT_GN_FIT) %>%
   split_by_type()
+
+if(save_files) usethis::use_data(PROT_GN_DA, overwrite = TRUE, version = 3)
 ```
 
 ```{r}
@@ -251,13 +254,20 @@ for (name_i in names(PROT_GN_DA)) {
   foo <- PROT_GN_DA[[name_i]] %>%
     mutate(signif_protein = adj.P.Val < 0.05) %>%
     select(contrast, featureName, signif_protein)
-
+  
   PHOSPHO_GN_DA[[name_i]] <- f1(PHOSPHO_GN_DA[[name_i]])
   
   ACETYL_GN_DA[[name_i]] <- f1(ACETYL_GN_DA[[name_i]])
   
   REDOX_GN_DA[[name_i]] <- f1(REDOX_GN_DA[[name_i]])
 }
+
+if(save_files){
+  usethis::use_data(PHOSPHO_GN_DA, overwrite = TRUE, version = 3)
+  usethis::use_data(ACETYL_GN_DA, overwrite = TRUE, version = 3)
+  usethis::use_data(REDOX_GN_DA, overwrite = TRUE, version = 3)
+}
+
 ```
 
 
@@ -282,6 +292,7 @@ TRNSCRPT_GN_FIT <- limmaFit(object = TRNSCRPT_GN,
 # Differential analysis
 TRNSCRPT_GN_DA <- limmaDEA(fit = TRNSCRPT_GN_FIT) %>%
   split_by_type()
+if(save_files) usethis::use_data(TRNSCRPT_GN_DA, overwrite = TRUE, version = 3)
 ```
 
 ```{r}
@@ -317,6 +328,8 @@ METAB_GN_FIT <- limmaFit(object = METAB_GN,
 # Differential analysis
 METAB_GN_DA <- limmaDEA(fit = METAB_GN_FIT) %>%
   split_by_type()
+if(save_files) usethis::use_data(METAB_GN_DA, overwrite = TRUE, version = 3)
+
 ```
 
 ```{r}
@@ -361,7 +374,6 @@ lapply(ATAC_GN_DA_05FDR,
 ```
 
 
-
 # Vastus Lateralis
 
 ## Transcriptomics
@@ -385,6 +397,8 @@ TRNSCRPT_VL_FIT <- limmaFit(object = TRNSCRPT_VL,
 # Differential analysis
 TRNSCRPT_VL_DA <- limmaDEA(fit = TRNSCRPT_VL_FIT) %>%
   split_by_type()
+
+if(save_files) usethis::use_data(TRNSCRPT_VL_DA, overwrite = TRUE, version = 3)
 ```
 
 ```{r}
@@ -420,6 +434,8 @@ METAB_VL_FIT <- limmaFit(object = METAB_VL,
 # Differential analysis
 METAB_VL_DA <- limmaDEA(fit = METAB_VL_FIT) %>%
   split_by_type()
+
+if(save_files) usethis::use_data(METAB_VL_DA, overwrite = TRUE, version = 3)
 ```
 
 ```{r}
@@ -438,20 +454,6 @@ lapply(METAB_VL_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
 ```
 
 
-# Save Results
-
-```{r eval=FALSE}
-# Save
-usethis::use_data(PROT_GN_DA, overwrite = TRUE, version = 3)
-usethis::use_data(PHOSPHO_GN_DA, overwrite = TRUE, version = 3)
-usethis::use_data(ACETYL_GN_DA, overwrite = TRUE, version = 3)
-usethis::use_data(REDOX_GN_DA, overwrite = TRUE, version = 3)
-usethis::use_data(TRNSCRPT_GN_DA, overwrite = TRUE, version = 3)
-usethis::use_data(METAB_GN_DA, overwrite = TRUE, version = 3)
-
-usethis::use_data(TRNSCRPT_VL_DA, overwrite = TRUE, version = 3)
-usethis::use_data(METAB_VL_DA, overwrite = TRUE, version = 3)
-```
 
 
 # Session Info

@@ -6,22 +6,22 @@ output:
   rmarkdown::html_vignette:
     toc: true
 vignette: >
-  %\VignetteIndexEntry{SKMVL Transcriptomics Gene Set Testing}
+%\VignetteIndexEntry{SKMVL Transcriptomics Gene Set Testing}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
----
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
+  ---
+  
+  ```{r, include = FALSE}
+  knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>", 
   fig.width = 6, 
   fig.height = 4
-)
-```
-
-```{r setup, message=FALSE, warning=FALSE}
-# Required packages
+  )
+  ```
+  
+  ```{r setup, message=FALSE, warning=FALSE}
+  # Required packages
 library(Biobase)
 library(dplyr)
 library(fgsea)
@@ -50,10 +50,10 @@ length(background) # 13342 unique genes
 ```{r}
 sizes_old <- lengths(rat_gene_sets) # sizes before filtering
 
-trnscrpt_VL_gene_sets <- filter_sets(rat_gene_sets, 
-                                     background = background, 
-                                     min_size = 5L,
-                                     max_size = length(background) - 1L)
+trnscrpt_VL_gene_sets <- TMSig::filterSets(rat_gene_sets, 
+                                           background = background, 
+                                           min_size = 5L,
+                                           max_size = length(background) - 1L)
 length(rat_gene_sets) # 9293
 length(trnscrpt_VL_gene_sets) # 9148
 ```
@@ -99,7 +99,7 @@ The gene sets cover about `r round(coverage * 100, 1)`% of the unique genes in t
 We will now try to reduce the redundancy of the sets. First, we will identify clusters of highly similar sets based on their Jaccard coefficients. Within each cluster, we will keep the largest set. Ties will be broken by selecting the set that was most similar to its human counterpart (ratio closest to 1), then the set with the shortest description, and finally according to alphanumeric order.
 
 ```{r}
-trnscrpt_cluster_df <- cluster_sets(trnscrpt_VL_gene_sets) %>% 
+trnscrpt_cluster_df <- TMSig::clusterSets(trnscrpt_VL_gene_sets) %>% 
   mutate(ratio = r[set],
          diff = abs(1 - ratio),
          n_char = nchar(set)) %>% 
@@ -214,7 +214,7 @@ vapply(trnscrpt_VL_stats, function(x) mean(duplicated(x)), numeric(1L))
 
 We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
 
-```{r eval=FALSE, message=FALSE, warning=FALSE}
+```{r eval=TRUE, message=FALSE, warning=FALSE}
 TRNSCRPT_VL_FGSEA <- lapply(trnscrpt_VL_stats, function(x) {
   lapply(colnames(x), function(contrast_i) {
     
@@ -272,7 +272,7 @@ head(TRNSCRPT_VL_FGSEA$trained_vs_SED)
 
 We will also perform Correlation Adjusted MEan RAnk gene set testing (CAMERA) with `TMSig::cameraPR.matrix`, a fast matrix method for `limma::cameraPR`.
 
-```{r eval=FALSE, message=FALSE}
+```{r eval=TRUE, message=FALSE}
 # CAMERA (pre-ranked)
 TRNSCRPT_VL_CAMERA <- lapply(trnscrpt_VL_stats, function(x) {
   cameraPR(statistic = x, 
@@ -305,7 +305,7 @@ lapply(TRNSCRPT_VL_CAMERA, function(x) with(x, table(Contrast, PAdj < 0.05)))
 head(TRNSCRPT_VL_CAMERA$trained_vs_SED)
 ```
 
-```{r eval=FALSE}
+```{r eval=TRUE}
 # Save results
 usethis::use_data(trnscrpt_VL_gene_sets, overwrite = TRUE, version = 3)
 usethis::use_data(TRNSCRPT_VL_REDUNDANT_SETS, overwrite = TRUE, version = 3)

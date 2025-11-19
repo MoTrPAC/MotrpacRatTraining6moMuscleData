@@ -6,17 +6,17 @@ output:
   rmarkdown::html_vignette:
     toc: true
 vignette: >
-%\VignetteIndexEntry{SKMGN Transcriptomics Gene Set Testing}
+  %\VignetteIndexEntry{SKMGN Transcriptomics Gene Set Testing}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-  ---
+---
   
-  ```{r, include = FALSE}
+```{r, include = FALSE}
 knitr::opts_chunk$set(
-collapse = TRUE,
-comment = "#>", 
-fig.width = 6, 
-fig.height = 4
+  collapse = TRUE,
+  comment = "#>", 
+  fig.width = 6, 
+  fig.height = 4
 )
 ```
 
@@ -46,7 +46,7 @@ length(background) # 13361 unique genes
 ```
 
 ```{r}
-trnscrpt_GN_gene_sets <- filterSets(rat_gene_sets, 
+trnscrpt_GN_gene_sets <- TMSig::filterSets(rat_gene_sets, 
                                     background = background, 
                                     min_size = 5L,
                                     max_size = length(background) - 1L)
@@ -209,7 +209,7 @@ vapply(trnscrpt_GN_stats, function(x) mean(duplicated(x)), numeric(1L))
 
 We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
 
-```{r eval=FALSE, message=FALSE, warning=FALSE}
+```{r eval=TRUE, message=FALSE, warning=FALSE}
 TRNSCRPT_GN_FGSEA <- lapply(trnscrpt_GN_stats, function(x) {
   lapply(colnames(x), function(contrast_i) {
     
@@ -268,7 +268,7 @@ head(TRNSCRPT_GN_FGSEA$trained_vs_SED)
 
 We will also perform Correlation Adjusted MEan RAnk gene set testing (CAMERA) with `TMSig::cameraPR.matrix`, a fast matrix method for `limma::cameraPR`.
 
-```{r eval=FALSE, message=FALSE}
+```{r eval=TRUE, message=FALSE}
 # CAMERA (pre-ranked)
 TRNSCRPT_GN_CAMERA <- lapply(trnscrpt_GN_stats, function(x) {
   cameraPR(statistic = x, 
@@ -300,7 +300,7 @@ lapply(TRNSCRPT_GN_CAMERA, function(x) with(x, table(Contrast, PAdj < 0.05)))
 head(TRNSCRPT_GN_CAMERA$trained_vs_SED)
 ```
 
-```{r eval=FALSE}
+```{r eval=TRUE}
 # Save results
 usethis::use_data(trnscrpt_GN_gene_sets, overwrite = TRUE, version = 3)
 usethis::use_data(TRNSCRPT_GN_REDUNDANT_SETS, overwrite = TRUE, version = 3)

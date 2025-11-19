@@ -25,6 +25,5 @@ length(human_kinase_sets) # 319 kinases
 
 hist(lengths(human_kinase_sets)) # most are below 100
 
-
 # Save
 usethis::use_data(human_kinase_sets, overwrite = TRUE, version = 3)

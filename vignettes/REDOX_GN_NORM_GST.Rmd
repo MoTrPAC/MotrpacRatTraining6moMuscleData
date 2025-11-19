@@ -48,7 +48,7 @@ length(background) # 3210 genes
 ```
 
 ```{r}
-redox_GN_NORM_gene_sets <- filter_sets(rat_gene_sets, 
+redox_GN_NORM_gene_sets <- TMSig::filterSets(rat_gene_sets, 
                                        background = background,
                                        min_size = 5L,
                                        max_size = length(background) - 1L)
@@ -95,7 +95,7 @@ The gene sets cover about `r round(coverage * 100, 1)`% of the unique genes in t
 We will now try to reduce the redundancy of the sets. First, we will identify clusters of highly similar sets based on their Jaccard coefficients. Within each cluster, we will keep the largest set. Ties will be broken by selecting the set that was most similar to its human counterpart (ratio closest to 1), then the set with the shortest description, and finally according to alphanumeric order.
 
 ```{r}
-redox_cluster_df <- cluster_sets(redox_GN_NORM_gene_sets) %>% 
+redox_cluster_df <- TMSig::clusterSets(redox_GN_NORM_gene_sets) %>% 
   mutate(ratio = r[set],
          diff = abs(1 - ratio),
          n_char = nchar(set)) %>% 
@@ -211,7 +211,7 @@ vapply(redox_GN_NORM_stats, function(x) mean(duplicated(x)), numeric(1L))
 
 We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
 
-```{r eval=FALSE, message=FALSE, warning=FALSE}
+```{r eval=TRUE, message=FALSE, warning=FALSE}
 REDOX_GN_NORM_FGSEA <- lapply(redox_GN_NORM_stats, function(x) {
   lapply(colnames(x), function(contrast_i) {
     
@@ -270,7 +270,7 @@ head(REDOX_GN_NORM_FGSEA$trained_vs_SED)
 
 We will also perform Correlation Adjusted MEan RAnk gene set testing (CAMERA) with `TMSig::cameraPR.matrix`, a fast matrix method for `limma::cameraPR`.
 
-```{r eval=FALSE, message=FALSE}
+```{r eval=TRUE, message=FALSE}
 # CAMERA (pre-ranked)
 REDOX_GN_NORM_CAMERA <- lapply(redox_GN_NORM_stats, function(x) {
   cameraPR(statistic = x, 
@@ -304,7 +304,7 @@ lapply(REDOX_GN_NORM_CAMERA, function(x) with(x, table(Contrast, PAdj < 0.05)))
 head(REDOX_GN_NORM_CAMERA$trained_vs_SED)
 ```
 
-```{r eval=FALSE}
+```{r eval=TRUE}
 # Save results
 usethis::use_data(redox_GN_NORM_gene_sets, overwrite = TRUE, version = 3)
 usethis::use_data(REDOX_GN_NORM_REDUNDANT_SETS, overwrite = TRUE, version = 3)
