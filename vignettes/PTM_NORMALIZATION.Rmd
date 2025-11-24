@@ -1,0 +1,188 @@
+---
+title: "Normalize PTM by global Proteomics GN"
+author: "Christopher Jin"
+date: "Last compiled `r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Normalization of PTMs by Global Prot}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+  
+# General goals and overview
+  
+One specific way of normalizing post-translational modification data is to normalize by global proteomics data. The general thought process is: "is an increase in acetylation due to increased acetylation rates, or due to there being more protein to be acetylated? (or oxidized/reduced/etc)". So we attempt to adjust the values in the PTM platforms (REDOX, ACETYL, PHOSPHO) by global protein quantifications (PROT_GN).
+  
+There is some nuance to this analysis that won't be covered in this report, but this data will aim to visualize and what effect this normalization process has. Nick Day would be the person to talk to for any questions regarding this process.
+  
+## Note for PTMs normalization possibility.
+  
+This normalization is done per sample based on the global proteomics data. In some cases, where a sample is considered an outlier in the global proteomics, we aren't able to normalize the corresponding PTM data, even if the sample doesn't seem to be an outlier in PTM data. Also, this only applies for PTMs and proteins that are shared in terms of measurements. In cases of missingness, we aren't able to normalize. 
+
+Suggested to look through each of the PTMs and characterize which sets of proteins/PTMs are most commonly lost after the normalization process. I'd expect its due to inability to quantify the global protein?
+
+  
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>", 
+  fig.width = 6, 
+  fig.height = 4
+)
+```
+  
+```{r setup, message=FALSE, warning=FALSE}
+# Required packages
+library(Biobase)
+library(dplyr)
+library(fgsea)
+library(MotrpacRatTraining6moMuscleData)
+library(TMSig)
+library(stats)
+library(ggplot2)
+save_files = TRUE
+```
+  
+```{r}
+#author of this function: Nick Day. See the supplementary methods section
+#for further rationale and details of this method. 
+
+#global and ptm are ExpressionSet or MSnSet objects
+#will only correctfeatures that are commonly observed between PTM and global data
+norm_by_global <- function(global, ptm) {
+  f_global <- fData(global)
+  f_ptm <- fData(ptm) %>% 
+    mutate(fData(ptm), featureName = rownames(.))
+  
+  df_global <- exprs(global) %>% 
+    `colnames<-`(global$pid) %>% 
+    as.data.frame() %>% 
+    mutate(protein_id = rownames(.)) %>% 
+    tidyr::pivot_longer(cols = -protein_id,
+                        names_to = "sample",
+                        values_to = "global_value")
+  
+  df_ptm <- exprs(ptm) %>%
+    `colnames<-`(ptm$pid) %>% 
+    as.data.frame() %>% 
+    mutate(featureName = rownames(.)) %>% 
+    tidyr::pivot_longer(cols = -featureName,
+                        names_to = "sample",
+                        values_to = "value") %>% 
+    left_join(select(f_ptm, featureName, protein_id),
+              by = "featureName")
+  
+  norm_expr <- inner_join(df_ptm, df_global, 
+                          by = c("protein_id", "sample")) %>% 
+    left_join(select(pData(ptm), pid, viallabel) %>% 
+                mutate(across(everything(), as.character)), 
+              by = c("sample" = "pid")) %>% 
+    mutate(value = value - global_value) %>% 
+    tidyr::pivot_wider(id_cols = featureName, 
+                       names_from = "viallabel",
+                       values_from = "value") %>% 
+    as.data.frame() %>% 
+    `rownames<-`(.$featureName) %>% 
+    select(-featureName) %>% 
+    as.matrix()
+  
+  ptm <- ptm[rownames(norm_expr), colnames(norm_expr)]
+  exprs(ptm) <- norm_expr
+  
+  return(ptm)
+}
+```
+
+And we further make a function that describes/visualizes the changes after normalization.
+
+We add the following:
+1. Message for how many sites are now included
+2. Correlations between before and after normalization
+
+```{r}
+describe_change = function(previous_ptm = NULL,
+                           normalized_ptm = NULL){
+  df_old <- exprs(previous_ptm) %>% 
+    `colnames<-`(previous_ptm$pid) %>% 
+    as.data.frame() %>% 
+    mutate(featureName = rownames(.)) %>% 
+    tidyr::pivot_longer(cols = -featureName,
+                        names_to = "sample",
+                        values_to = "old_value")
+  
+  df_new <- exprs(normalized_ptm) %>%
+    `colnames<-`(normalized_ptm$pid) %>% 
+    as.data.frame() %>% 
+    mutate(featureName = rownames(.)) %>% 
+    tidyr::pivot_longer(cols = -featureName,
+                        names_to = "sample",
+                        values_to = "new_value")
+
+  message(
+    paste0("Previously, there were: ", sum(!is.na(df_old$old_value)), " site-sample combinations")
+  )
+  
+  message(
+    paste0("Now, there are: ", sum(!is.na(df_new$new_value)), " site-sample combinations")
+  )
+  
+  combined_ptms <- left_join(df_old, df_new, 
+                             by = c("featureName", "sample")) %>%
+    filter(!is.na(old_value) & !is.na(new_value))
+
+  cor_val = cor(combined_ptms$old_value, combined_ptms$new_value)
+  
+  p = ggplot(combined_ptms, aes(x = old_value, y = new_value)) +
+    geom_point(alpha = 0.5) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+    geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
+    annotate(
+      "text",
+      x = Inf, y = -Inf,
+      hjust = 1.1, vjust = -0.5,
+      label = paste0("r = ", round(cor_val, 3))
+    ) +
+    labs(
+      x = "Old value (ptm + sample combo)",
+      y = "New value (ptm + sample combo)"
+    ) +
+    coord_equal()
+  return(p)
+}
+
+```
+
+# Redox 
+
+```{r}
+REDOX_GN_NORM <- norm_by_global(global = PROT_GN, ptm = REDOX_GN)
+if(save_files) usethis::use_data(REDOX_GN_NORM, overwrite = TRUE, version = 3)
+  
+p = describe_change(REDOX_GN, REDOX_GN_NORM)
+print(p)
+```
+
+# Phospho
+
+```{r}
+PHOSPHO_GN_NORM <- norm_by_global(global = PROT_GN, ptm = PHOSPHO_GN)
+if(save_files) usethis::use_data(PHOSPHO_GN_NORM, overwrite = TRUE, version = 3)
+  
+p = describe_change(PHOSPHO_GN, PHOSPHO_GN_NORM)
+print(p)
+```
+
+# Acetyl
+
+```{r}
+ACETYL_GN_NORM <- norm_by_global(global = PROT_GN, ptm = ACETYL_GN)
+if(save_files) usethis::use_data(ACETYL_GN_NORM, overwrite = TRUE, version = 3)
+
+p = describe_change(ACETYL_GN, ACETYL_GN_NORM)
+print(p)
+```
+
+
+

@@ -25,19 +25,20 @@ Depends:
     R (>= 3.6.0)
 Imports:
     stats,
-    conflicted
-Suggests:
+    conflicted,
+    limma,
+    edgeR,
     Biobase,
+    data.table,
+    dplyr
+Suggests:
     biomaRt,
     ComplexHeatmap,
-    dplyr,
-    edgeR,
     fgsea,
     ggplot2,
     grid,
     knitr,
     latex2exp,
-    limma,
     Mfuzz,
     MotrpacRatTraining6mo,
     MotrpacRatTraining6moData (>= 1.9.1),
@@ -63,3 +64,4 @@ Remotes:
 VignetteBuilder: knitr
 RoxygenNote: 7.3.3
 Roxygen: list(markdown = TRUE)
+License: MIT + file LICENSE

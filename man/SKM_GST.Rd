@@ -9,10 +9,16 @@
 \alias{PROT_GN_CAMERA}
 \alias{ACETYL_GN_FGSEA}
 \alias{ACETYL_GN_CAMERA}
+\alias{ACETYL_GN_NORM_FGSEA}
+\alias{ACETYL_GN_NORM_CAMERA}
 \alias{PHOSPHO_GN_FGSEA}
 \alias{PHOSPHO_GN_CAMERA}
+\alias{PHOSPHO_GN_NORM_FGSEA}
+\alias{PHOSPHO_GN_NORM_CAMERA}
 \alias{REDOX_GN_FGSEA}
 \alias{REDOX_GN_CAMERA}
+\alias{REDOX_GN_NORM_FGSEA}
+\alias{REDOX_GN_NORM_CAMERA}
 \alias{METAB_GN_FGSEA}
 \alias{METAB_GN_CAMERA}
 \alias{TRNSCRPT_VL_FGSEA}
@@ -110,29 +116,29 @@ f <- function(x) {
 
 ## FGSEA ----
 # Gastrocnemius
-f1(TRNSCRPT_GN_FGSEA) # Transcriptomics
-f1(PROT_GN_FGSEA)     # Proteomics
-f1(PHOSPHO_GN_FGSEA)  # Phosphoproteomics
-f1(ACETYL_GN_FGSEA)   # Acetyl proteomics
-f1(REDOX_GN_FGSEA)    # Redox proteomics
-f1(METAB_GN_FGSEA)    # Metabolomics/lipidomics
+#f1(TRNSCRPT_GN_FGSEA) # Transcriptomics
+#f1(PROT_GN_FGSEA)     # Proteomics
+#f1(PHOSPHO_GN_FGSEA)  # Phosphoproteomics
+#f1(ACETYL_GN_FGSEA)   # Acetyl proteomics
+#f1(REDOX_GN_FGSEA)    # Redox proteomics
+#f1(METAB_GN_FGSEA)    # Metabolomics/lipidomics
 
 # Vastus lateralis
-f1(TRNSCRPT_VL_FGSEA) # Transcriptomics
-f1(METAB_VL_FGSEA)    # Metabolomics/lipidomics
+#f1(TRNSCRPT_VL_FGSEA) # Transcriptomics
+#f1(METAB_VL_FGSEA)    # Metabolomics/lipidomics
 
 ## CAMERA-PR ----
 # Gastrocnemius
-f1(TRNSCRPT_GN_CAMERA) # Transcriptomics
-f1(PROT_GN_CAMERA)     # Proteomics
-f1(PHOSPHO_GN_CAMERA)  # Phosphoproteomics
-f1(ACETYL_GN_CAMERA)   # Acetyl proteomics
-f1(REDOX_GN_CAMERA)    # Redox proteomics
-f1(METAB_GN_CAMERA)    # Metabolomics/lipidomics
+#f1(TRNSCRPT_GN_CAMERA) # Transcriptomics
+#f1(PROT_GN_CAMERA)     # Proteomics
+#f1(PHOSPHO_GN_CAMERA)  # Phosphoproteomics
+#f1(ACETYL_GN_CAMERA)   # Acetyl proteomics
+#f1(REDOX_GN_CAMERA)    # Redox proteomics
+#f1(METAB_GN_CAMERA)    # Metabolomics/lipidomics
 
 # Vastus lateralis
-f1(TRNSCRPT_VL_CAMERA) # Transcriptomics
-f1(METAB_VL_CAMERA)    # Metabolomics/lipidomics
+#f1(TRNSCRPT_VL_CAMERA) # Transcriptomics
+#f1(METAB_VL_CAMERA)    # Metabolomics/lipidomics
 
 
 }

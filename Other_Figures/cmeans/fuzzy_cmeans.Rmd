@@ -1,0 +1,454 @@
+---
+title: "Fuzzy C-Means Clustering"
+author: "Christopher Jin and Tyler Sagendorf"
+date: "Last compiled `r format(Sys.time(), '%d %B, %Y')`"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>", 
+  fig.width = 6, 
+  fig.height = 4
+)
+
+save_plots <- dir.exists(file.path("..", "..", "plots"))
+```
+
+```{r setup, warning=FALSE, message=FALSE}
+# Required packages
+library(Biobase)
+library(ComplexHeatmap) # max_text_width
+library(dplyr)
+library(ggplot2)
+library(grid) # gpar, unit, convertUnit
+library(latex2exp) # TeX
+library(Mfuzz) # mfuzz, mestimate, mfuzz.plot2
+library(MotrpacRatTraining6moMuscleData)
+library(tibble)
+library(tidyr)
+library(TMSig)
+library(here)
+library(data.table)
+
+num_clusters = 12
+```
+
+# Prepare Input
+
+```{r combine-DA-results}
+combined_DA <- list(
+  "PROT_GN" = PROT_GN_DA,
+  "TRNSCRPT_GN" = TRNSCRPT_GN_DA,
+  "METAB_GN" = METAB_GN_DA
+) %>% 
+  lapply(function(x) {
+    x[["trained_vs_SED"]] %>% 
+      select(contrast, featureName, z, P.Value, adj.P.Val,
+             any_of(c("gene_symbol", "metabolite_refmet")))
+  }) %>% 
+  bind_rows(.id = "ome") %>% 
+  mutate(
+    contrast = sub(" .*", "", contrast),
+    contrast = factor(contrast, levels = unique(contrast)),
+    featureName2 = case_when(
+      !is.na(gene_symbol) ~ gene_symbol,
+      !is.na(metabolite_refmet) ~ metabolite_refmet, 
+      TRUE ~ featureName
+    )
+  ) %>%
+  select(
+    -c(gene_symbol, metabolite_refmet)
+  ) %>% 
+  # Select the most extreme z-score by feature
+  arrange(
+    ome, contrast, desc(abs(z))
+  ) %>%
+  filter(
+    .by = c(ome, contrast),
+    !duplicated(featureName2)
+  ) %>%
+  mutate(
+    sex = substr(x = as.character(contrast), 1L, 1L)
+  ) %>%
+  mutate(
+    min_padj_M = ifelse(
+      sex == "M", 
+      adj.P.Val,
+      NA_real_
+    ),
+    min_padj_F = ifelse(
+      sex == "F",
+      adj.P.Val,
+      NA_real_
+    )
+  ) %>% 
+  mutate(
+    .by = c(ome, featureName),
+    min_padj_M = ifelse(
+      all(is.na(min_padj_M)),
+      NA_real_,
+      min(min_padj_M, na.rm = TRUE)
+    ),
+    min_padj_F = ifelse(
+      all(is.na(min_padj_F)),
+      NA_real_,
+      min(min_padj_F, na.rm = TRUE)
+    )
+  ) %>%
+  tidyr::pivot_wider(
+    id_cols = c(ome, featureName, featureName2, contains("min_padj")),
+    names_from = contrast,
+    values_from = z
+  ) %>% 
+  # Complete data for clustering
+  filter(
+    complete.cases(
+      across(.cols = ends_with("W", ignore.case = FALSE))
+    )
+  )
+
+head(combined_DA)
+```
+
+```{r create-eset-list}
+expr_mat <- combined_DA %>% 
+  mutate(row_names = paste(ome, featureName)) %>% 
+  tibble::column_to_rownames("row_names")
+
+f_data <- expr_mat %>% 
+  select(ome, featureName, featureName2, contains("min_padj"))
+
+expr_mat <- select(expr_mat, -colnames(f_data)) %>%
+  as.matrix()
+
+eset <- ExpressionSet(
+  assayData = expr_mat, 
+  featureData = AnnotatedDataFrame(f_data)
+)
+
+eset # summary of ExpressionSet object
+```
+
+```{r reorder-clusters}
+# Reorder clusters so those with similar trajectories are consecutive
+reorder_clusters <- function(fclust) {
+  d <- as.dist(1 - cor(t(fclust$centers)))
+  hc <- hclust(d)
+  neworder <- hc$order
+  
+  fclust$centers <- fclust$centers[neworder, ]
+  rownames(fclust$centers) <- seq_len(nrow(fclust$centers))
+  
+  fclust$size <- fclust$size[neworder]
+  
+  fclust$cluster[] <- match(fclust$cluster, neworder)
+  fclust$membership <- fclust$membership[, neworder]
+  colnames(fclust$membership) <- seq_len(ncol(fclust$membership))
+  
+  return(fclust)
+}
+```
+
+```{r eval=TRUE}
+# Fuzzy C-Means (FCM) clustering ----
+# Split by sex
+eset_list <- lapply(c("F", "M"), function(sex_i) {
+  eset[, grepl(sex_i, colnames(eset))]
+}) %>% 
+  setNames(c("Female", "Male"))
+
+FCM = list()
+for(sex_i in c("Female", "Male")){
+  eset_i <- eset_list[[sex_i]]
+  
+  col <- paste0("min_padj_", substr(sex_i, 1L, 1L))
+  #we plan on just simplifying and using only the significant 
+  #features for this analysis.
+  
+  #if we are using 12 clusters -> we don't do a p-value threshold.
+  #if we are using a smaller number of clusters -> we do filter. 
+  eset_i_sub <- eset_i #[fData(eset_i)[[col]] < 0.05, ]
+  
+  #add the 0 columns representing the SED groups
+  non_scaled = exprs(eset_i_sub)
+  # scaled = t(scale(t(exprs(eset_i))))
+  esets_zeros = cbind(rep(0, nrow(non_scaled)),
+                      non_scaled)
+  # message(paste0("Sig Feat: ",sex_i,  nrow(esets_zeros)))
+  colnames(esets_zeros) = c("SED", colnames(eset_i))
+  
+  eset_cmeans <- ExpressionSet(
+    assayData = esets_zeros, 
+    featureData = AnnotatedDataFrame(fData(eset_i_sub))
+  )
+  
+  set.seed(0L)
+  # Calculate membership probabilities for all features
+  fcm_2 <- mfuzz(
+    eset = eset_cmeans,
+    centers = num_clusters,
+    m = 2,
+    iter.max = 1L # more iterations will flatten clusters
+  ) %>% 
+    reorder_clusters()
+  
+  FCM[[sex_i]] = fcm_2
+  
+  file_name = file.path(here(), "plots/fuzzy_cmeans", paste0(sex_i, ".png"))
+  png(file = file_name,
+      width = 12, height = 10, units = "in", res = 1200)
+  Mfuzz::mfuzz.plot2(eset_cmeans,
+                     mfrow = c(3,4),
+                     ylim.set = c(-4,4),
+                     fcm_2,
+                     min.mem = 0.3,
+                     xlab = "",
+                     ylab = "",
+                     centre = TRUE,
+                     time.labels = colnames(esets_zeros),
+                     col.axis = "black",
+                     cex.axis = 1.5, #axis text size,
+                     cex.main = 2, #main title text size
+                     # single = i,
+                     x11 = FALSE)
+  dev.off()
+}
+```
+
+# Localization of Gene Sets to Clusters
+
+## Overrepresentation analysis
+
+That is, for each gene set, what cluster trajector(y/ies) does it most closely follow?
+
+```{r ORA}
+index_list <- list(
+  "PROT_GN" = prot_GN_gene_sets,
+  "TRNSCRPT_GN" = trnscrpt_GN_gene_sets,
+  "METAB_GN" = metab_GN_refmet_sets
+)
+
+FCM_ORA_SEX_STRATIFIED = data.frame()
+
+for(sex_i in c("Female", "Male")){
+  FCM_ORA <- lapply(unique(fData(eset)[["ome"]]), function(ome_i) {
+    cl <- FCM[[sex_i]]
+    eset_i <- eset_list[[sex_i]]
+    
+    col <- paste0("min_padj_", substr(sex_i, 1L, 1L))
+    #we plan on just simplifying and using only the significant features for this analysis. 
+    #no filtering if we include all the values. 
+    eset_i_sub <- eset_i #[fData(eset_i)[[col]] < 0.05, ]
+    keep <- fData(eset_i_sub)[["ome"]] == ome_i
+    cluster <- cl$cluster[keep]
+    #automatically assigns the cluster with highest membership. 
+    
+    # Convert between identifiers
+    names(cluster) <- fData(eset_i_sub)[["featureName2"]][keep]
+    cluster <- cluster[order(cluster, decreasing = FALSE)]
+    cluster_list <- split(x = names(cluster),
+                          f = factor(cluster,
+                                     levels = as.character(unique(cluster))))
+    
+    background = fData(eset_list[[sex_i]]) %>%
+      filter(ome == ome_i) %>% 
+      pull(featureName2)
+    
+    out = data.frame()
+    
+    for(cluster in seq(1:num_clusters)){
+      cluster_res = muscle_ora(input = cluster_list[[cluster]],
+                               background = background,
+                               database = index_list[[ome_i]])
+      cluster_res$cluster_num = cluster
+      cluster_res$adj_p_value = p.adjust(cluster_res$p_value, method = "BH")
+      out = rbind(out, cluster_res)
+    }
+    out$ome = ome_i
+    return(out)
+  }) %>%
+      bind_rows() 
+    FCM_ORA$sex = sex_i
+    FCM_ORA_SEX_STRATIFIED = rbind(FCM_ORA_SEX_STRATIFIED, FCM_ORA)
+}
+
+FCM_ORA_SEX_STRATIFIED = FCM_ORA_SEX_STRATIFIED %>% 
+  arrange(p_value) %>%
+  select(sex, ome, cluster_num, everything()) %>%
+  rename(GeneSet = set) %>%
+  left_join(., SET_TO_ID, by = "GeneSet")
+head(FCM_ORA_SEX_STRATIFIED)
+```
+
+
+```{r camerapr}
+index_list <- list(
+  "PROT_GN" = prot_GN_gene_sets,
+  "TRNSCRPT_GN" = trnscrpt_GN_gene_sets,
+  "METAB_GN" = metab_GN_refmet_sets
+)
+
+FCM_CAMERA_SEX_STRATIFIED = data.frame()
+
+for(sex_i in c("Female", "Male")){
+  FCM_CAMERA <- lapply(unique(fData(eset)[["ome"]]), function(ome_i) {
+    cl <- FCM[[sex_i]]
+    eset_i <- eset_list[[sex_i]]
+    
+    col <- paste0("min_padj_", substr(sex_i, 1L, 1L))
+    #we plan on just simplifying and using only the significant features for this analysis. 
+    #no filtering if we include all the values. 
+    eset_i_sub <- eset_i 
+    keep <- fData(eset_i_sub)[["ome"]] == ome_i
+    
+    cluster_membership = cl$membership[keep,]
+    # Convert between identifiers
+    rownames(cluster_membership) <- fData(eset_i_sub)[["featureName2"]][keep]
+    
+    camera_res = cameraPR(cluster_membership,
+                          index = index_list[[ome_i]]) %>%
+      rename(cluster_num = Contrast,
+             p_value = PValue,
+             adj_p_value = FDR) %>%
+      mutate(ome = ome_i)
+    return(camera_res)
+  }) %>%
+      bind_rows() 
+    FCM_CAMERA$sex = sex_i
+    FCM_CAMERA_SEX_STRATIFIED = rbind(FCM_CAMERA_SEX_STRATIFIED, FCM_CAMERA)
+}
+
+FCM_CAMERA_SEX_STRATIFIED = FCM_CAMERA_SEX_STRATIFIED %>% 
+  arrange(p_value) %>%
+  select(sex, ome, cluster_num, everything()) %>%
+  left_join(., SET_TO_ID, by = "GeneSet")
+head(FCM_CAMERA_SEX_STRATIFIED)
+```
+
+
+## Plot Top Terms by Cluster
+
+```{r enrichment-bubble-heatmaps, eval=save_plots}
+## Bubble heatmaps of tests for gene set localization
+for (ome_i in unique(FCM_ORA_SEX_STRATIFIED$ome)) {
+  for(sex_i in c("Female", "Male")){
+    x <- FCM_ORA_SEX_STRATIFIED %>% 
+      filter(ome == ome_i,
+             sex == sex_i)
+    if(ome_i == "METAB_GN") x$GeneSetShort = x$GeneSet
+    
+    # Select the top 6 terms by cluster
+    top_terms <- x %>% 
+      filter(adj_p_value < 0.05 + 0.05 * (ome_i == "PHOSPHO_GN")) %>% 
+      slice_min(p_value, n = 6L, by = cluster_num) %>%
+      pull(GeneSetShort) %>% 
+      unique()
+    
+    x <- filter(x, GeneSetShort %in% top_terms) %>% 
+      mutate(logP = -log10(p_value))
+    
+    # Dynamic heatmap height. Each cell of the heatmap is 14 pt, by default
+    height <- convertUnit(length(top_terms) * unit(15, "pt"), "in")
+    height <- max(as.numeric(height) + 0.2, 4)
+    
+    # Dynamic heatmap width
+    row_label_width <- ComplexHeatmap::max_text_width(x[["GeneSetShort"]])
+    row_label_width <- convertUnit(row_label_width, "in")
+    
+    width <- convertUnit(nlevels(x$cluster_num) * unit(15, "pt"), "in")
+    width <- as.numeric(width + row_label_width) + 5
+    
+    enrichmap(x = x,
+              plot_sig_only = FALSE,
+              n_top = Inf, # plot all terms
+              statistic_column = "logP",
+              set_column = "GeneSetShort",
+              padj_column = "adj_p_value",
+              padj_legend_title = "BH Adjusted\nP-Value",
+              contrast_column = "cluster_num",
+              heatmap_args = list(
+                na_col = "grey95",
+                rect_gp = gpar(fill = "white", col = "grey85"),
+                cluster_rows = FALSE,
+                heatmap_legend_param = list(
+                  title = latex2exp::TeX(
+                    "$\\bf{$-$log_{10}(P$-$Value)}$")
+                ),
+                column_names_side = "top"
+              ),
+              color = c("white", "#503080"),
+              filename = file.path("..", "..", "plots", "fuzzy_cmeans", "ORA",
+                                   sprintf("%s-%s-cmeans_ORA.png",
+                                           ome_i, sex_i)),
+              height = height, width = width)
+  }
+}
+```
+
+```{r enrichment-bubble-heatmaps, eval=save_plots}
+## Bubble heatmaps of tests for gene set localization
+for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
+  for(sex_i in c("Female", "Male")){
+    x <- FCM_CAMERA_SEX_STRATIFIED %>% 
+      filter(ome == ome_i,
+             sex == sex_i)
+    if(ome_i == "METAB_GN") x$GeneSetShort = x$GeneSet
+    
+    # Select the top n terms by cluster
+    top_terms <- x %>% 
+      filter(adj_p_value < 0.05 + 0.05 * (ome_i == "PHOSPHO_GN")) %>% 
+      slice_min(p_value, n = 4L, by = cluster_num) %>%
+      pull(GeneSetShort) %>% 
+      unique()
+    
+    x <- filter(x, GeneSetShort %in% top_terms) %>% 
+      mutate(logP = -log10(p_value))
+    
+    # Dynamic heatmap height. Each cell of the heatmap is 14 pt, by default
+    height <- convertUnit(length(top_terms) * unit(15, "pt"), "in")
+    height <- max(as.numeric(height) + 0.2, 4)
+    
+    # Dynamic heatmap width
+    row_label_width <- ComplexHeatmap::max_text_width(x[["GeneSetShort"]])
+    row_label_width <- convertUnit(row_label_width, "in")
+    
+    width <- convertUnit(nlevels(x$cluster_num) * unit(15, "pt"), "in")
+    width <- as.numeric(width + row_label_width) + 5
+    
+    enrichmap(x = x,
+              plot_sig_only = FALSE,
+              n_top = Inf, # plot all terms
+              statistic_column = "logP",
+              set_column = "GeneSetShort",
+              padj_column = "adj_p_value",
+              padj_legend_title = "BH Adjusted\nP-Value",
+              contrast_column = "cluster_num",
+              heatmap_args = list(
+                na_col = "grey95",
+                rect_gp = gpar(fill = "white", col = "grey85"),
+                cluster_rows = TRUE,
+                cluster_columns = FALSE,
+                heatmap_legend_param = list(
+                  title = latex2exp::TeX(
+                    "$\\bf{$-$log_{10}(P$-$Value)}$")
+                ),
+                column_names_side = "top"
+              ),
+              color = c("white", "#503080"),
+              filename = file.path("..", "..", "plots", "fuzzy_cmeans", "cameraPR",
+                                   sprintf("%s-%s-cmeans_CAMERA.png",
+                                           ome_i, sex_i)),
+              height = height, width = width)
+  }
+}
+```
+
+
+
+# Session Info
+
+```{r}
+print(sessionInfo(), locale = FALSE)
+```
+

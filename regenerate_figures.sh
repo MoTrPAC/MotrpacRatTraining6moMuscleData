@@ -18,21 +18,6 @@
 # The first thing worth noting is that the analysis for the muscle tissue is done for the vastus and the gastroc, but the gastroc has additional post translational modifications done (e.g. acetyl, phospho, redox) and atac.
 # done. Both tissues have trasncript, metab. Some of the ATAC scripts take a while to run, due to larger file sizes,
 # but the files should be readily available.
-#
-# For a full documentation of how each individual figure was processed:
-# 1A
-# 1B
-# 1C
-# 1D
-# 1E
-# 1F
-#
-# S1A
-# S1B
-# S1C
-# S1D
-# S1E
-# S1F
 # ======================================================
 
 set -euo pipefail
@@ -48,7 +33,7 @@ echo "------------------------------------------------------"
 
 # This is entirely for ease of use, changing names and variables to things that are easier to work with internally, making some
 
-Rscript "data-raw/internal_data.R"
+# Rscript "data-raw/internal_data.R"
 
 echo "------------------------------------------------------"
 echo "Step 1: Building normalized expression objects"
@@ -59,19 +44,19 @@ echo "------------------------------------------------------"
 #
 # Generally speaking, samples considered outliers in the MoTrPAC Nature paper were
 # also considered outliers here. There are some other samples that seem, as descriptively visualized
-# using an MDS plot, to be outliers.
+# using an MDS plot, to be outliers. These samples are weighted differently in the linear modeling strategies.
 
 # Run all scripts in data-raw to generate normalized omic objects.
-for script in $(ls "${DATA_RAW}"/* | grep -E "VL|GN" | grep "\.R$"); do
-  echo "Running ${script} ..."
-  Rscript "${script}"
-done
+# for script in $(ls "${DATA_RAW}"/* | grep -E "VL|GN" | grep "\.R$"); do
+#   echo "Running ${script} ..."
+#   Rscript "${script}"
+# done
 
 echo "------------------------------------------------------"
 echo "Step 1.1: Building global-protein normalized PTM expression objects"
 echo "------------------------------------------------------"
 
-Rscript -e "rmarkdown::render('${VIGNETTES}/PTM_NORMALIZATION.Rmd', output_format = 'html_document', output_file = NULL, run_pandoc = FALSE)"
+# Rscript -e "rmarkdown::render('${VIGNETTES}/PTM_NORMALIZATION.Rmd', output_format = 'html_document', output_file = NULL, run_pandoc = FALSE)"
 
 echo "------------------------------------------------------"
 echo "Step 2: Building gene set and mapping objects"
@@ -81,30 +66,27 @@ echo "------------------------------------------------------"
 # objects to human. Some of these scripts rely on the normalized expression
 # values from part A and/or need to be generated in a specific order.
 
-echo "Running RAT_TO_HUMAN.R ..."
-Rscript "data-raw/RAT_TO_HUMAN.R"
-
-echo "Running gene_sets.R ..."
-Rscript "data-raw/gene_sets.R"
-
-echo "Running human_kinase_sets.R ..."
-Rscript "data-raw/human_kinase_sets.R"
-
-echo "Running RAT_TO_HUMAN_SITE.R ..."
-Rscript "data-raw/RAT_TO_HUMAN_SITE.R"
-
-echo "Running SET_TO_ID ..."
-Rscript "data-raw/SET_TO_ID.R"
+# echo "Running RAT_TO_HUMAN.R ..."
+# Rscript "data-raw/RAT_TO_HUMAN.R"
+#
+# echo "Running gene_sets.R ..."
+# Rscript "data-raw/gene_sets.R"
+#
+# echo "Running human_kinase_sets.R ..."
+# Rscript "data-raw/human_kinase_sets.R"
+#
+# echo "Running RAT_TO_HUMAN_SITE.R ..."
+# Rscript "data-raw/RAT_TO_HUMAN_SITE.R"
+#
+# echo "Running SET_TO_ID ..."
+# Rscript "data-raw/SET_TO_ID.R"
 
 
 echo "------------------------------------------------------"
 echo "Step 3: Running differential analysis"
 echo "------------------------------------------------------"
 
-Rscript -e "rmarkdown::render('${VIGNETTES}/differential_analysis.Rmd',
-                              output_format = 'html_document',
-                              output_file = NULL,
-                              run_pandoc = FALSE)"
+# Rscript -e "rmarkdown::render('${VIGNETTES}/differential_analysis.Rmd')"
 
 
 echo "------------------------------------------------------"
@@ -114,10 +96,7 @@ echo "------------------------------------------------------"
 for script in $(ls "${VIGNETTES}"/* | grep -E 'VL|GN' | grep '\.Rmd$'); do
   echo "Running ${script} ..."
 
-  Rscript -e "rmarkdown::render('${script}',
-                                output_format = 'html_document',
-                                output_file = NULL,
-                                run_pandoc = FALSE)"
+  Rscript -e "rmarkdown::render('${script}')"
 
 done
 

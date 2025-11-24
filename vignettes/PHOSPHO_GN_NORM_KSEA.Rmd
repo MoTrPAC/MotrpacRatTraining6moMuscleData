@@ -137,7 +137,7 @@ Most kinases have few sites.
 
 We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
 
-```{r eval=TRUE, message=FALSE, warning=FALSE}
+```{r eval=FALSE, message=FALSE, warning=FALSE}
 PHOSPHO_GN_NORM_FGSEA <- lapply(phospho_GN_stats, function(x) {
   lapply(colnames(x), function(contrast_i) {
     

@@ -1,12 +1,12 @@
 ---
-title: "Gastrocnemius Metabolomics RefMet Subclass Testing"
+title: "Vastus Lateralis Metabolomics RefMet Subclass Testing"
 author: "Tyler Sagendorf"
 date: "Last compiled `r format(Sys.time(), '%d %B, %Y')`"
 output: 
   rmarkdown::html_document:
     toc: true
 vignette: >
-  %\VignetteIndexEntry{Gastrocnemius Metabolomics RefMet Subclass Testing}
+  %\VignetteIndexEntry{Vastus Lateralis Metabolomics RefMet Subclass Testing}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -40,7 +40,7 @@ length(background) # 198 metabolites
 ```{r}
 metab_VL_refmet_sets <- with(fData(METAB_VL), 
                              split(metabolite_refmet, sub_class)) %>% 
-  filter_sets(min_size = 5L)
+  TMSig::filterSets(min_size = 5L)
 
 length(metab_VL_refmet_sets) # 10
 ```
@@ -87,7 +87,7 @@ vapply(metab_VL_stats, function(x) mean(duplicated(x)), numeric(1L))
 
 We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
 
-```{r eval=TRUE, message=FALSE, warning=FALSE}
+```{r eval=FALSE, message=FALSE, warning=FALSE}
 METAB_VL_FGSEA <- lapply(metab_VL_stats, function(x) {
   lapply(colnames(x), function(contrast_i) {
     

@@ -3,11 +3,15 @@
 \docType{data}
 \name{SKM_EXP}
 \alias{SKM_EXP}
+\alias{ATAC_GN}
 \alias{TRNSCRPT_GN}
 \alias{PROT_GN}
 \alias{PHOSPHO_GN}
+\alias{PHOSPHO_GN_NORM}
 \alias{ACETYL_GN}
+\alias{ACETYL_GN_NORM}
 \alias{REDOX_GN}
+\alias{REDOX_GN_NORM}
 \alias{METAB_GN}
 \alias{TRNSCRPT_VL}
 \alias{METAB_VL}
@@ -21,6 +25,7 @@ containing -omics data for differential analysis.
 The proteomics expression datasets contain log\eqn{_2}-transformed
 TMT intensities relative to a global reference in each plex. These values
 are median-MAD-normalized and TMT-plex-batch-corrected with
-\code{\link[limma:removeBatchEffect]{limma::removeBatchEffect}}.
+\code{\link[limma:removeBatchEffect]{limma::removeBatchEffect}}. Each of
+the datasets tagged \code{NORM} reflect PTM adjustment by global proteomics.
 }
 \keyword{datasets}

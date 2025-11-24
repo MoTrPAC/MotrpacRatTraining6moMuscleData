@@ -198,16 +198,6 @@
 #'
 #' @export limmaFit
 
-
-if (!require("edgeR", quietly = TRUE))
-  BiocManager::install("edgeR")
-
-library(limma)
-library(edgeR)
-library(Biobase)
-library(stats)
-library(graphics)
-
 limmaFit <- function(object,
                      model.str,
                      contrasts,

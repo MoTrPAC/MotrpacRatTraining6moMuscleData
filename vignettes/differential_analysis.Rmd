@@ -17,7 +17,7 @@ knitr::opts_chunk$set(
   comment = "#>", 
   fig.width = 6, 
   fig.height = 4,
-  eval = FALSE
+  eval = TRUE
 )
 ```
 
@@ -26,8 +26,9 @@ knitr::opts_chunk$set(
 library(Biobase)
 library(dplyr)
 library(ggplot2)
+library(limma)
+# library(MotrpacRatTraining6moMuscleData)
 
-devtools::load_all() #for limmaFit, limmaDEA
 save_files = TRUE
 ```
 
@@ -170,6 +171,40 @@ lapply(PHOSPHO_GN_DA, function(x) {
 lapply(PHOSPHO_GN_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
 ```
 
+### Phospho normalized by global proteomics
+
+```{r}
+# Create MArrayLM fitted object
+PHOSPHO_GN_NORM_FIT <- limmaFit(object = PHOSPHO_GN_NORM,
+                           model.str = "~ 0 + exp_group",
+                           contrasts = contrasts, 
+                           # Robust mean-variance trend
+                           trend = TRUE, robust = TRUE, 
+                           # Sample-level quality weights
+                           var.group = "viallabel",
+                           plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+PHOSPHO_GN_NORM_DA <- limmaDEA(fit = PHOSPHO_GN_NORM_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(PHOSPHO_GN_NORM_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential phosphosites
+lapply(PHOSPHO_GN_NORM_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
 
 ## Acetyl-proteomics
 
@@ -204,6 +239,42 @@ lapply(ACETYL_GN_DA, function(x) {
 ```{r}
 # Count number of differential phosphosites
 lapply(ACETYL_GN_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+### Acetyl normalized by global proteomics
+
+
+```{r}
+# Create MArrayLM fitted object
+ACETYL_GN_NORM_FIT <- limmaFit(object = ACETYL_GN_NORM,
+                          model.str = "~ 0 + exp_group",
+                          contrasts = contrasts, 
+                          # Robust mean-variance trend
+                          trend = TRUE, robust = TRUE, 
+                          # Sample-level quality weights
+                          var.group = "viallabel",
+                          plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+ACETYL_GN_NORM_DA <- limmaDEA(fit = ACETYL_GN_NORM_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(ACETYL_GN_NORM_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential phosphosites
+lapply(ACETYL_GN_NORM_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
 ```
 
 
@@ -242,6 +313,43 @@ lapply(REDOX_GN_DA, function(x) {
 lapply(REDOX_GN_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
 ```
 
+### Redox normalized by global proteomics
+
+
+```{r}
+# Create MArrayLM fitted object
+REDOX_GN_NORM_FIT <- limmaFit(object = REDOX_GN_NORM,
+                         model.str = "~ 0 + exp_group",
+                         contrasts = contrasts, 
+                         # Robust mean-variance trend
+                         trend = TRUE, robust = TRUE, 
+                         # Sample-level quality weights
+                         var.group = "viallabel",
+                         plot = TRUE)
+```
+
+```{r}
+# Differential analysis
+REDOX_GN_NORM_DA <- limmaDEA(fit = REDOX_GN_NORM_FIT) %>%
+  split_by_type()
+```
+
+```{r}
+# Check p-value histograms
+lapply(REDOX_GN_NORM_DA, function(x) {
+  ggplot(x, aes(x = P.Value)) +
+    geom_histogram(breaks = seq(0, 1, 0.05)) +
+    facet_wrap(~ contrast, ncol = 4) +
+    theme_bw()
+})
+```
+
+```{r}
+# Count number of differential phosphosites
+lapply(REDOX_GN_NORM_DA, function(x) with(x, table(contrast, adj.P.Val < 0.05)))
+```
+
+
 ```{r}
 # Include column for differential change in global protein abundance
 f1 <- function(x) {
@@ -256,16 +364,24 @@ for (name_i in names(PROT_GN_DA)) {
     select(contrast, featureName, signif_protein)
   
   PHOSPHO_GN_DA[[name_i]] <- f1(PHOSPHO_GN_DA[[name_i]])
+  PHOSPHO_GN_NORM_DA[[name_i]] <- f1(PHOSPHO_GN_NORM_DA[[name_i]])
+  
   
   ACETYL_GN_DA[[name_i]] <- f1(ACETYL_GN_DA[[name_i]])
+  ACETYL_GN_NORM_DA[[name_i]] <- f1(ACETYL_GN_NORM_DA[[name_i]])
   
   REDOX_GN_DA[[name_i]] <- f1(REDOX_GN_DA[[name_i]])
+  REDOX_GN_NORM_DA[[name_i]] <- f1(REDOX_GN_NORM_DA[[name_i]])
 }
 
 if(save_files){
   usethis::use_data(PHOSPHO_GN_DA, overwrite = TRUE, version = 3)
   usethis::use_data(ACETYL_GN_DA, overwrite = TRUE, version = 3)
   usethis::use_data(REDOX_GN_DA, overwrite = TRUE, version = 3)
+  
+  usethis::use_data(PHOSPHO_GN_NORM_DA, overwrite = TRUE, version = 3)
+  usethis::use_data(ACETYL_GN_NORM_DA, overwrite = TRUE, version = 3)
+  usethis::use_data(REDOX_GN_NORM_DA, overwrite = TRUE, version = 3)
 }
 
 ```

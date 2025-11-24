@@ -6,8 +6,11 @@
 \alias{TRNSCRPT_GN_DA}
 \alias{PROT_GN_DA}
 \alias{PHOSPHO_GN_DA}
+\alias{PHOSPHO_GN_NORM_DA}
 \alias{ACETYL_GN_DA}
+\alias{ACETYL_GN_NORM_DA}
 \alias{REDOX_GN_DA}
+\alias{REDOX_GN_NORM_DA}
 \alias{METAB_GN_DA}
 \alias{TRNSCRPT_VL_DA}
 \alias{METAB_VL_DA}

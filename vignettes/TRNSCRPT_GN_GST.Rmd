@@ -28,6 +28,7 @@ library(fgsea)
 library(MotrpacRatTraining6moMuscleData)
 library(TMSig) # set filtering, similarity, clustering
 library(stats)
+
 ```
 
 # Prepare Gene Sets
@@ -209,7 +210,7 @@ vapply(trnscrpt_GN_stats, function(x) mean(duplicated(x)), numeric(1L))
 
 We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
 
-```{r eval=TRUE, message=FALSE, warning=FALSE}
+```{r eval=FALSE, message=FALSE, warning=FALSE}
 TRNSCRPT_GN_FGSEA <- lapply(trnscrpt_GN_stats, function(x) {
   lapply(colnames(x), function(contrast_i) {
     

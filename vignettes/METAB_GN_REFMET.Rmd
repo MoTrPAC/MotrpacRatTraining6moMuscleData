@@ -28,6 +28,7 @@ library(fgsea) # fgsea
 library(MotrpacRatTraining6moMuscleData)
 library(TMSig) # filter_sets
 library(stats)
+
 ```
 
 # Prepare Sets
@@ -40,7 +41,7 @@ length(background) # 1046 metabolites/lipids
 ```{r}
 metab_GN_refmet_sets <- with(fData(METAB_GN), 
                              split(metabolite_refmet, sub_class)) %>% 
-  filter_sets(min_size = 5L)
+  TMSig::filterSets(min_size = 5L)
 
 length(metab_GN_refmet_sets) # 27
 ```
@@ -95,7 +96,7 @@ vapply(metab_GN_stats, function(x) mean(duplicated(x)), numeric(1L))
 
 We will perform fast gene set enrichment analysis (FGSEA) for each contrast.
 
-```{r eval=TRUE, message=FALSE, warning=FALSE}
+```{r eval=FALSE, message=FALSE, warning=FALSE}
 METAB_GN_FGSEA <- lapply(metab_GN_stats, function(x) {
   lapply(colnames(x), function(contrast_i) {
     

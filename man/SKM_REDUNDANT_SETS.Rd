@@ -8,6 +8,8 @@
 \alias{ACETYL_GN_REDUNDANT_SETS}
 \alias{REDOX_GN_REDUNDANT_SETS}
 \alias{TRNSCRPT_VL_REDUNDANT_SETS}
+\alias{ACETYL_GN_NORM_REDUNDANT_SETS}
+\alias{REDOX_GN_NORM_REDUNDANT_SETS}
 \title{Redundant gene sets}
 \format{
 an object of class \code{data.frame} with 5 columns:
@@ -41,7 +43,7 @@ TRNSCRPT_VL_REDUNDANT_SETS
 }
 \description{
 Gene sets that were removed following use of
-\code{\link[TMSig]{cluster_sets}} with default parameters. These tend to be
+\code{\link[TMSig]{clusterSets}} with default parameters. These tend to be
 subsets of those sets that were retained for analysis.
 }
 \keyword{datasets}

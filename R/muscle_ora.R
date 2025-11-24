@@ -1,21 +1,22 @@
-#' Test specific gene sets for
+#' @title Overrepresentation analysis for specific gene sets
 #'
-#' @param significant_features the set of significant features to test
-#' @param background the set of all features included
+#' @param input the set of features you would like to investigate
+#' @param background the set of all features included/studied
+#' @param database the gene sets you would like to include. See `rat_gene_sets` for information about the specific format that is expected.
+#' @param min_size Minimum number of features in a gene set included in the `background` object
 #'
-#' @return
-#' @export
+#' @return a data.frame object that details enrichment results for each of the sets describes in \code{rat_gene_sets}
+#' or whatever is used for the `database` input.
+#' @importFrom dplyr %>% mutate across everything filter arrange
+#' @importFrom data.table :=
+#' @importFrom stats phyper
 #'
-#' @examples
 
 muscle_ora <- function(input,
                        background,
                        database = rat_gene_sets,
-                       path_to_gmt = NULL,
-                       min_size = 5L,
-                       overlap_cutoff = 0.7) {
+                       min_size = 5L) {
   on.exit(gc())
-  overlap_cutoff <- max(0, min(overlap_cutoff, 1, na.rm = TRUE))
 
   if (!is.vector(input, mode = "character") || !length(input)) {
     stop("`input` must be a character vector of features.")
@@ -65,17 +66,12 @@ muscle_ora <- function(input,
   }
 
   # overlap_cutoff does not affect RefMet, PhosphoSitePlus, or PTMSigDB
-  # signatures
-  if (!any(grepl("^REFMET|^PSP|^PTMSIGDB", names(index)))) {
-    keep <- lengths(index) / set_size_DB[names(index)] >= overlap_cutoff
-
-    if (sum(keep) == 0L) {
-      stop("No gene sets pass `overlap_cutoff`. ",
-           "The `background` may be too small.")
-    }
-
-    index <- index[keep]
-  }
+  # # signatures
+  # if (!any(grepl("^REFMET|^PSP|^PTMSIGDB", names(index)))) {
+  #   keep <- lengths(index) / set_size_DB[names(index)]
+  #
+  #   index <- index[keep]
+  # }
 
   # Restrict sets to input vector of features.
   index_filt <- .fast_list_intersect(x = index, y = input)
