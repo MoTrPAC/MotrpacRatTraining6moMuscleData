@@ -1,12 +1,7 @@
 library(MotrpacRatTraining6moMuscleData)
 library(dplyr)
 library(ComplexHeatmap)
-
-#pull in all datasets into environment from zip file package
-setwd("./data")
-rdata_files <- list.files(path = ".", pattern = "\\.rda$", full.names = TRUE)
-lapply(rdata_files, load, .GlobalEnv)
-
+library(here)
 
 x <- list("GN-TRNSCRPT" = TRNSCRPT_GN_DA,
           "GN-PROT" = PROT_GN_DA,
@@ -125,7 +120,7 @@ col_fun <- heatmap_args$col
 
 ht <- do.call(what = Heatmap, args = heatmap_args)
 
-png("plots/SKM_DA_summary2.png",
+png(file.path(here(),"plots/SKM_DA_summary2.png"),
     height = 3.5, width = 5.2, units = "in", res = 500)
 draw(ht,
      heatmap_legend_side = "bottom")

@@ -38,7 +38,13 @@ down <- filter(plot_counts, point_color == "Down")
 tests2$contrast <- factor(tests2$contrast, levels = c("F_1W - F_SED","M_1W - M_SED","F_2W - F_SED","M_2W - M_SED",
                                                       "F_4W - F_SED", "M_4W - M_SED", "F_8W - F_SED", "M_8W - M_SED"))#reorder factors based on initial test results
 
-ggplot(data=tests2, aes(x=logFC, y=-log10(adj.P.Val), col=point_color)) +
+pdf(file = file.path(
+  here(), "plots", "redox_volcano.pdf"
+  ),
+  width = 7,
+  height = 9
+)
+p = ggplot(data=tests2, aes(x=logFC, y=-log10(adj.P.Val), col=point_color)) +
   geom_point() +
   theme_bw() +
   scale_color_manual(values = c("#5555ff", "red3", "lightgrey"), breaks = c("Down", "Up", "NS")) +
@@ -54,6 +60,8 @@ ggplot(data=tests2, aes(x=logFC, y=-log10(adj.P.Val), col=point_color)) +
   geom_text_repel(data = tests2, aes(label = gene_labels), size =3, box.padding = 0.5, point.padding = 0.2,
                   min.segment.length = 0.1, max.overlaps = 30, show.legend = F) +
   guides(color = guide_legend(override.aes = list(size = 5)))
+print(p)
+dev.off()
 
 #export as 7x9 PDF; portrait
 

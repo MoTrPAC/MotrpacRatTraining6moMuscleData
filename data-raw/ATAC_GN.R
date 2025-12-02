@@ -5,7 +5,6 @@ library(Biobase)
 library(ggplot2)
 library(data.table)
 
-devtools::load_all()
 
 # Matrix of expected counts ----
 counts_GN <- file.path(

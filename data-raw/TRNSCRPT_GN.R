@@ -28,8 +28,8 @@ colnames(counts_GN) <- sub("^X", "", colnames(counts_GN))
 mart <- useEnsembl(
   biomart = "genes",
   dataset = "rnorvegicus_gene_ensembl",
-  # version = 110,
-  mirror = "useast"
+  version = 110#,
+  # mirror = "useast"
 ) # mRatBN7.2
 
 # datasets <- listDatasets(mart)
@@ -116,7 +116,7 @@ dge_gn <- DGEList(
 
 # Remove low-count transcripts
 keep <- filterByExpr(dge_gn)
-table(keep) # 14201 kept. 16359 discarded.
+table(keep)
 dge_gn <- dge_gn[keep, , keep.lib.sizes = FALSE]
 
 # Calculate library size normalization factors
@@ -146,7 +146,7 @@ TRNSCRPT_GN <- ExpressionSet(
   featureData = featureData
 )
 
-dim(TRNSCRPT_GN) # 14201 features, 50 samples
+dim(TRNSCRPT_GN) # 13034 features, 50 samples
 
 
 # Save

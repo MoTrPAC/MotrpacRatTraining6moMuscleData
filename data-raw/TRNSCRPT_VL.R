@@ -28,8 +28,8 @@ colnames(counts_VL) <- sub("^X", "", colnames(counts_VL))
 mart <- useEnsembl(
   biomart = "genes",
   dataset = "rnorvegicus_gene_ensembl",
-  # version = 110,
-  mirror = "useast"
+  version = 110,
+  # mirror = "useast"
 ) # mRatBN7.2
 
 # datasets <- listDatasets(mart)
@@ -164,7 +164,7 @@ TRNSCRPT_VL <- ExpressionSet(
   featureData = featureData
 )
 
-dim(TRNSCRPT_VL) # 13014 features, 48 samples
+dim(TRNSCRPT_VL) # 14176 features, 48 samples
 
 
 # Save
