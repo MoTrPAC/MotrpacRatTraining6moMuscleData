@@ -13,6 +13,8 @@ library(forcats)
 library(reshape2)
 library(ggpubr)
 
+#Author: Nick Day
+
 load("./RD0a_1.1-msnsets_processed_for_phenotype_data.RData")
 
 View(pData(m_ls[["m_glob"]]))
@@ -22,16 +24,16 @@ pheno_dat <- data.frame(pData(m_ls[["m_glob"]])) %>% select(-c("pid", "viallabel
 pheno_dat2 <-  melt(pheno_dat, idvar = "bid", timevar = "timepoint", direction = "long")
 
 ggplot(data=pheno_dat2, aes(x=timepoint, y=value, fill = sex)) +
-  geom_dotplot(binaxis = "y", 
-               stackdir='center', 
-               position=position_dodge(0.8)) + 
+  geom_dotplot(binaxis = "y",
+               stackdir='center',
+               position=position_dodge(0.8)) +
   theme_classic() +
   stat_summary(fun.data = "mean_sdl", #mean + SD
                fun.args = list(mult = 1),
     position = position_dodge(width = .75)) +
   scale_fill_manual(values = c("magenta", "blue")) +
   theme(legend.key.size = unit(2,"line"), axis.text = element_text(color = "black")) +
-  facet_wrap(~factor(variable, levels = unique(pheno_dat2$variable)), scales = "free") 
+  facet_wrap(~factor(variable, levels = unique(pheno_dat2$variable)), scales = "free")
 
 
 #look at SED and 8W and only glycogen and citrate_synthase
@@ -40,12 +42,12 @@ pheno_dat3 <- pheno_dat2 %>% filter(timepoint == "SED" | timepoint == "8W", vari
 pheno_dat3 <- pheno_dat3 %>% mutate(grp = paste(timepoint, "_", sex, sep = ""))
 
 #glycogen and CS plots
-ggplot(data=pheno_dat3[pheno_dat3$variable == "glycogen" | pheno_dat3$variable == "citrate_synthase", ], 
+ggplot(data=pheno_dat3[pheno_dat3$variable == "glycogen" | pheno_dat3$variable == "citrate_synthase", ],
        aes(x=sex, y=value, fill = timepoint)) +
-  geom_dotplot(binaxis = "y", 
-               stackdir='center', 
+  geom_dotplot(binaxis = "y",
+               stackdir='center',
                position=position_dodge(0.8)
-               ) + 
+               ) +
   theme_classic() +
   geom_pwc( #https://github.com/kassambara/ggpubr/issues/421 to do p value brackets
     aes(group = timepoint),
@@ -75,10 +77,10 @@ ggplot(data=pheno_dat3[pheno_dat3$variable == "glycogen" | pheno_dat3$variable =
 
 #look at SED and 8W separately for VO2 Max only (supplemental panel)
 ggplot(data=pheno_dat3[pheno_dat3$variable == "delta_vo2max_ml_kg_min", ], aes(x=sex, y=value, fill = timepoint)) +
-  geom_dotplot(binaxis = "y", 
-               stackdir='center', 
+  geom_dotplot(binaxis = "y",
+               stackdir='center',
                position=position_dodge(0.8)
-  ) + 
+  ) +
   theme_classic() +
   geom_pwc( #https://github.com/kassambara/ggpubr/issues/421 to do p value brackets
     aes(group = timepoint),

@@ -46,7 +46,7 @@ echo "------------------------------------------------------"
 # also considered outliers here. There are some other samples that seem, as descriptively visualized
 # using an MDS plot, to be outliers. These samples are weighted differently in the linear modeling strategies.
 
-Run all scripts in data-raw to generate normalized omic objects.
+# Run all scripts in data-raw to generate normalized omic objects.
 for script in $(ls "${DATA_RAW}"/* | grep -E "VL|GN" | grep "\.R$"); do
   echo "Running ${script} ..."
   Rscript "${script}"

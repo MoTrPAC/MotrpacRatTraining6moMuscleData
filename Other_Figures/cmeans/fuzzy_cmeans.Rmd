@@ -268,9 +268,9 @@ for(sex_i in c("Female", "Male")){
     out$ome = ome_i
     return(out)
   }) %>%
-      bind_rows() 
-    FCM_ORA$sex = sex_i
-    FCM_ORA_SEX_STRATIFIED = rbind(FCM_ORA_SEX_STRATIFIED, FCM_ORA)
+    bind_rows() 
+  FCM_ORA$sex = sex_i
+  FCM_ORA_SEX_STRATIFIED = rbind(FCM_ORA_SEX_STRATIFIED, FCM_ORA)
 }
 
 FCM_ORA_SEX_STRATIFIED = FCM_ORA_SEX_STRATIFIED %>% 
@@ -314,9 +314,9 @@ for(sex_i in c("Female", "Male")){
       mutate(ome = ome_i)
     return(camera_res)
   }) %>%
-      bind_rows() 
-    FCM_CAMERA$sex = sex_i
-    FCM_CAMERA_SEX_STRATIFIED = rbind(FCM_CAMERA_SEX_STRATIFIED, FCM_CAMERA)
+    bind_rows() 
+  FCM_CAMERA$sex = sex_i
+  FCM_CAMERA_SEX_STRATIFIED = rbind(FCM_CAMERA_SEX_STRATIFIED, FCM_CAMERA)
 }
 
 FCM_CAMERA_SEX_STRATIFIED = FCM_CAMERA_SEX_STRATIFIED %>% 
@@ -333,9 +333,13 @@ head(FCM_CAMERA_SEX_STRATIFIED)
 ## Bubble heatmaps of tests for gene set localization
 for (ome_i in unique(FCM_ORA_SEX_STRATIFIED$ome)) {
   for(sex_i in c("Female", "Male")){
-    x <- FCM_ORA_SEX_STRATIFIED %>% 
-      filter(ome == ome_i,
-             sex == sex_i)
+    if(sex_i == "Female") desired_clusters = c(3, 7, 9, 11)
+    if(sex_i == "Male") desired_clusters = c(3, 5, 10, 11)
+    
+    # x <- FCM_ORA_SEX_STRATIFIED %>% 
+    #   filter(ome == ome_i,
+    #          sex == sex_i,
+    #          cluster_num %in% as.factor(desired_clusters))
     if(ome_i == "METAB_GN") x$GeneSetShort = x$GeneSet
     
     # Select the top 6 terms by cluster
@@ -379,7 +383,7 @@ for (ome_i in unique(FCM_ORA_SEX_STRATIFIED$ome)) {
               ),
               color = c("white", "#503080"),
               filename = file.path("..", "..", "plots", "fuzzy_cmeans", "ORA",
-                                   sprintf("%s-%s-cmeans_ORA.png",
+                                   sprintf("%s-%s_select-clusters_cmeans_ORA.png",
                                            ome_i, sex_i)),
               height = height, width = width)
   }
@@ -390,15 +394,20 @@ for (ome_i in unique(FCM_ORA_SEX_STRATIFIED$ome)) {
 ## Bubble heatmaps of tests for gene set localization
 for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
   for(sex_i in c("Female", "Male")){
+    
+    if(sex_i == "Female") desired_clusters = c(3, 7, 9, 11)
+    if(sex_i == "Male") desired_clusters = c(3, 5, 10, 11)
+    
     x <- FCM_CAMERA_SEX_STRATIFIED %>% 
       filter(ome == ome_i,
-             sex == sex_i)
+             sex == sex_i) #,
+             # cluster_num %in% as.factor(desired_clusters))
     if(ome_i == "METAB_GN") x$GeneSetShort = x$GeneSet
     
     # Select the top n terms by cluster
     top_terms <- x %>% 
       filter(adj_p_value < 0.05 + 0.05 * (ome_i == "PHOSPHO_GN")) %>% 
-      slice_min(p_value, n = 4L, by = cluster_num) %>%
+      slice_min(p_value, n = 10L, by = cluster_num) %>%
       pull(GeneSetShort) %>% 
       unique()
     
@@ -431,13 +440,15 @@ for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
                 cluster_columns = FALSE,
                 heatmap_legend_param = list(
                   title = latex2exp::TeX(
-                    "$\\bf{$-$log_{10}(P$-$Value)}$")
+                    "$\\bf{$-$log_{10}(P$-$Value)}$"),
+                  at = c(0, 20),
+                  labels = c(0, 20)
                 ),
                 column_names_side = "top"
               ),
               color = c("white", "#503080"),
               filename = file.path("..", "..", "plots", "fuzzy_cmeans", "cameraPR",
-                                   sprintf("%s-%s-cmeans_CAMERA.png",
+                                   sprintf("%s-%s_select-clusters_cmeans_CAMERA.png",
                                            ome_i, sex_i)),
               height = height, width = width)
   }

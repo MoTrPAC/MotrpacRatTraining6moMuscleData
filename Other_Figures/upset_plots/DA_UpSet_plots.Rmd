@@ -1,0 +1,395 @@
+---
+title: "UpSet Plots of Differential Analysis Results"
+author: "Tyler Sagendorf, Christopher Jin"
+date: "Last compiled `r format(Sys.time(), '%d %B, %Y')`"
+output:
+  rmarkdown::html_document:
+    toc: true
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = dir.exists(file.path("..", "..", "plots"))
+)
+```
+
+```{r setup}
+# Required packages
+library(MotrpacRatTraining6moMuscleData)
+library(ComplexHeatmap)
+library(dplyr)
+library(tidyr)
+```
+
+# UpSet Plots by Tissue/-Ome/Sex
+
+```{r}
+scale <- 1.5
+beside <- FALSE
+fill_colors <- c("#3366ff", "darkred")
+
+df <- list(
+  "PHOSPHO_GN" = PHOSPHO_GN_DA,
+  "ACETYL_GN" = ACETYL_GN_DA,
+  "REDOX_GN" = REDOX_GN_DA,
+  "PROT_GN" = PROT_GN_DA,
+  "PHOSPHO_GN_NORM" = PHOSPHO_GN_NORM_DA,
+  "ACETYL_GN_NORM" = ACETYL_GN_NORM_DA, #Male upset plot for acetyl will not draw
+  "REDOX_GN_NORM" = REDOX_GN_NORM_DA
+) %>%
+  lapply(function(y) {
+    y[["trained_vs_SED"]] %>%
+      filter(adj.P.Val < 0.05) %>%
+      mutate(
+        direction = factor(sign(z),
+          levels = c(+1, -1),
+          labels = c("Up", "Down")
+        ),
+        sex = substr(contrast, 1, 1)
+      ) %>%
+      select(contrast, featureName, direction, sex)
+  }) %>%
+  bind_rows(.id = "ome")
+
+for (ome_i in unique(df$ome)) {
+  x_vals <- df %>%
+    filter(ome == ome_i) %>%
+    summarise(n = n(), .by = contrast) %>%
+    pull(n)
+
+  x_breaks <- scales::breaks_pretty(n = 4)(x_vals)
+  x_max <- max(x_breaks)
+
+  for (sex_i in c("F","M")) {
+    if(sex_i == "M" & ome_i == "ACETYL_GN_NORM") next  #Male upset plot for acetyl will not draw
+    foo <- df %>% 
+      filter(
+        ome == ome_i,
+        sex == sex_i
+      ) %>%
+      droplevels.data.frame() %>%
+      {
+        split(.$featureName, .$contrast)
+      }
+
+    m <- make_comb_mat(foo, mode = "distinct", top_n_sets = 10L)
+    ss <- set_size(m)
+    cs <- comb_size(m)
+
+    # Number of differential features by direction of change and contrast
+    res1 <- df %>%
+      filter(
+        ome == ome_i,
+        sex == sex_i
+      ) %>%
+      droplevels.data.frame() %>%
+      summarise(
+        featureName = list(featureName),
+        .by = c(contrast, direction)
+      )
+
+    set_bar <- res1 %>%
+      mutate(n = lengths(featureName)) %>%
+      pivot_wider(
+        id_cols = "contrast",
+        names_from = direction,
+        values_from = n,
+        values_fill = 0
+      ) %>%
+      as.data.frame() %>%
+      `rownames<-`(.$contrast) %>%
+      select(-contrast)
+
+    # Intersection size
+    y_breaks <- scales::breaks_pretty(n = 4)(cs)
+
+    ta <- HeatmapAnnotation(
+      "Intersection\nSize" = anno_barplot(
+        x = cs,
+        border = FALSE,
+        which = "column",
+        add_numbers = TRUE,
+        gp = gpar(fill = "black", col = NA),
+        axis_param = list(
+          gp = gpar(fontsize = 5.5 * scale),
+          at = y_breaks
+        ),
+        ylim = c(0, max(y_breaks)),
+        height = unit(1, "in") * scale,
+        extend = 0
+      ),
+      which = "column",
+      annotation_name_rot = 0,
+      annotation_name_side = "left",
+      annotation_name_gp = gpar(fontsize = 6 * scale),
+      annotation_height = unit(1, "in") * scale
+    )
+
+
+    # Number of differential features
+    ra <- HeatmapAnnotation(
+      "Differential Features" = anno_barplot(
+        x = set_bar,
+        beside = beside,
+        border = FALSE,
+        gp = gpar(fill = fill_colors, col = NA),
+        axis_param = list(
+          gp = gpar(fontsize = 5.5 * scale),
+          at = x_breaks
+        ),
+        ylim = c(0, x_max),
+        extend = 0
+      ),
+      which = "row",
+      annotation_name_gp = gpar(fontsize = 6 * scale),
+      annotation_width = unit(1, "in") * scale
+    )
+
+    
+    # row_nm <- gsub(paste(sex_i,"_",  sep = ""), "", rownames(m))
+    # row_nm <- latex2exp::TeX(paste("(",row_nm, ")", sex_i, sep=""))
+
+
+    ht <- UpSet(m,
+      pt_size = unit(8 * scale, "pt"),
+      lwd = 2 * scale,
+      set_order = seq_along(ss),
+      comb_order = order(-cs),
+      # top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+      top_annotation = ta,
+      right_annotation = ra,
+      row_names_gp = gpar(fontsize = 7 * scale),
+      width = length(cs) * unit(10, "pt") * scale,
+      height = 4 * unit(10, "pt") * scale,
+      column_title = ome_i,
+      row_labels = latex2exp::TeX(
+        sprintf("(%dW - SED)$_%s$", 2^(0:3), sex_i)
+      )
+    )
+
+    # Fill legend
+    lt <- Legend(
+      title = "Direction",
+      at = c("Up", "Down"),
+      labels = c("Up", "Down"),
+      border = TRUE,
+      gap = unit(0, "pt"),
+      grid_height = unit(7, "pt") * scale,
+      grid_width = unit(7, "pt") * scale,
+      labels_gp = gpar(fontsize = 6 * scale),
+      legend_gp = gpar(fill = rev(fill_colors))
+    )
+
+
+    # Save UpSet plot to file
+    png(
+      file = file.path(
+        "..", "..", "plots", "UpSet_plots",
+        sprintf(
+          "UpSet_%s_DA-trained_vs_SED-%_%s.png",
+          ome_i,
+          ifelse(sex_i == "F", "female", "male"),
+          date_annotated
+        )
+      ),
+      height = 2.2 * scale, width = 4.5 * scale, bg = "white",
+      units = "in", res = 500
+    )
+    draw(ht,
+      annotation_legend_list = lt,
+      align_annotation_legend = "global_center"
+    )
+    dev.off()
+  }
+}
+```
+
+
+## Combine Males and Females
+
+```{r}
+scale <- 1.5
+beside <- FALSE
+fill_colors <- c("#3366ff", "darkred")
+
+df <- list(
+  "PHOSPHO_GN" = PHOSPHO_GN_DA,
+  "ACETYL_GN" = ACETYL_GN_DA,
+  "REDOX_GN" = REDOX_GN_DA,
+  "PROT_GN" = PROT_GN_DA,
+  "PHOSPHO_GN_NORM" = PHOSPHO_GN_NORM_DA,
+  "ACETYL_GN_NORM" = ACETYL_GN_NORM_DA,
+  "REDOX_GN_NORM" = REDOX_GN_NORM_DA
+) %>%
+  lapply(function(y) {
+    y[["trained_vs_SED"]] %>%
+      mutate(direction = factor(sign(z),
+        levels = c(+1, -1),
+        labels = c("Up", "Down")
+      )) %>%
+      select(contrast, featureName, direction, adj.P.Val)
+  }) %>%
+  bind_rows(.id = "ome")
+
+for (ome_i in unique(df$ome)) {
+  message(ome_i)
+
+  x_vals <- df %>%
+    filter(ome == ome_i) %>%
+    arrange(contrast) %>%
+    summarise(n = sum(adj.P.Val < 0.05), .by = contrast) %>%
+    {
+      structure(.$n, names = as.character(.$contrast))
+    }
+
+  x_breaks <- scales::breaks_pretty(n = 4)(x_vals)
+  x_max <- max(x_breaks)
+
+  # for (sex_i in c("F", "M")) {
+
+  foo <- df %>%
+    filter(ome == ome_i) %>%
+    # filter(adj.P.Val < 0.05) %>%
+    summarise(
+      .by = contrast,
+      featureName = list(featureName[adj.P.Val < 0.05])
+    ) %>%
+    {
+      setNames(.$featureName, .$contrast)
+    }
+
+  m <- make_comb_mat(foo, mode = "distinct")
+
+  cs <- comb_size(m)
+  m <- m[, order(-cs)]
+  cs <- comb_size(m)
+
+  keep <- 1:min(20L, length(cs))
+  in_most_sets <- which.max(strsplit(names(cs), split = "") %>%
+    vapply(function(i) sum(i == "1"), integer(1L)))
+  keep <- unique(keep, in_most_sets)
+  m <- m[, keep]
+  ss <- set_size(m)
+  cs <- comb_size(m)
+
+  # Number of differential features by direction of change and contrast
+  res1 <- df %>%
+    filter(ome == ome_i) %>%
+    droplevels.data.frame() %>%
+    summarise(
+      featureName = list(featureName[adj.P.Val < 0.05]),
+      .by = c(contrast, direction)
+    )
+
+  set_bar <- res1 %>%
+    mutate(n = lengths(featureName)) %>%
+    pivot_wider(
+      id_cols = "contrast",
+      names_from = direction,
+      values_from = n,
+      values_fill = 0
+    ) %>%
+    as.data.frame() %>%
+    `rownames<-`(.$contrast) %>%
+    select(-contrast)
+
+  # Intersection size
+  y_breaks <- scales::breaks_pretty(n = 4)(cs)
+
+  ta <- HeatmapAnnotation(
+    "Intersection\nSize" = anno_barplot(
+      x = cs,
+      border = FALSE,
+      which = "column",
+      add_numbers = TRUE,
+      gp = gpar(fill = "black", col = NA),
+      axis_param = list(
+        gp = gpar(fontsize = 5.5 * scale),
+        at = y_breaks
+      ),
+      ylim = c(0, max(y_breaks)),
+      height = unit(1, "in") * scale,
+      extend = 0
+    ),
+    which = "column",
+    annotation_name_rot = 0,
+    annotation_name_side = "left",
+    annotation_name_gp = gpar(fontsize = 6 * scale),
+    annotation_height = unit(1, "in") * scale
+  )
+
+
+  # Number of differential features
+  ra <- HeatmapAnnotation(
+    "Differential Features" = anno_barplot(
+      x = set_bar,
+      beside = beside,
+      border = FALSE,
+      gp = gpar(fill = fill_colors, col = NA),
+      axis_param = list(
+        gp = gpar(fontsize = 5.5 * scale),
+        at = x_breaks
+      ),
+      ylim = c(0, x_max),
+      extend = 0
+    ),
+    which = "row",
+    annotation_name_gp = gpar(fontsize = 6 * scale),
+    annotation_width = unit(1, "in") * scale
+  )
+
+
+  ht <- UpSet(m,
+    pt_size = unit(8 * scale, "pt"),
+    lwd = 2 * scale,
+    set_order = seq_along(ss),
+    comb_order = order(-cs),
+    top_annotation = ta,
+    right_annotation = ra,
+    row_names_gp = gpar(fontsize = 7 * scale),
+    width = length(cs) * unit(10, "pt") * scale,
+    height = length(ss) * unit(10, "pt") * scale,
+    # row_split = factor(rep(c("Female", "Male"), each = 4),
+    #                    levels = c("Female", "Male")),
+    row_labels = rep(paste0(2^(0:3), "W - SED"), times = 2),
+    row_title = "  Male     Female",
+    column_title = ome_i
+  )
+
+
+
+  # Fill legend
+  lt <- Legend(
+    title = "Direction",
+    at = c("Up", "Down"),
+    labels = c("Up", "Down"),
+    border = TRUE,
+    gap = unit(0, "pt"),
+    grid_height = unit(7, "pt") * scale,
+    grid_width = unit(7, "pt") * scale,
+    labels_gp = gpar(fontsize = 6 * scale),
+    legend_gp = gpar(fill = rev(fill_colors))
+  )
+
+  # Save UpSet plot to file
+  png(
+    file = file.path(
+      "..", "..", "plots", "UpSet_plots",
+      sprintf(
+        "UpSet_%s_DA-trained_vs_SED_combined_%s.png",
+        ome_i,
+        date_annotated
+      )
+    ),
+    height = 2.8 * scale, width = 5 * scale, bg = "white",
+    units = "in", res = 500
+  )
+  draw(ht,
+    annotation_legend_list = lt,
+    align_annotation_legend = "global_center"
+  )
+  dev.off()
+}
+```
