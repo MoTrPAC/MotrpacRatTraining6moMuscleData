@@ -11,6 +11,8 @@
 #' @importFrom data.table :=
 #' @importFrom stats phyper
 #'
+#' @export muscle_ora
+#'
 
 muscle_ora <- function(input,
                        background,
