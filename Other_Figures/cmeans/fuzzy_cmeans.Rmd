@@ -510,6 +510,29 @@ camera_res[["downregulation"]] = CAMERA_filtered_down
 ```
 
 ```{r}
+cell_size = unit(6, "mm")
+ome_cols = c(METAB_GN = "darkgreen", PROT_GN = "steelblue", TRNSCRPT_GN = "orange")
+ome_lg = ComplexHeatmap::Legend(
+  title = "Omics enrichments",
+  at = names(ome_cols),
+  legend_gp = grid::gpar(fill = ome_cols)
+)
+
+sig_lg = ComplexHeatmap::Legend(
+  title = "Significance",
+  at = "FDR < 0.05",
+  legend_gp = grid::gpar(fill = "grey90", col = NA)
+)
+    
+sex_cols = sex_cols = c(Female = MotrpacBicQC::sex_cols[["Female"]],
+                        Male = MotrpacBicQC::sex_cols[["Male"]]) 
+sex_lg = ComplexHeatmap::Legend(
+  title = "Sex",
+  at = names(sex_cols),
+  legend_gp = grid::gpar(fill = sex_cols)
+)
+
+
 for(direction in names(camera_res)){
   camera_select = camera_res[[direction]]
   camera_heatmaps = list()
@@ -568,13 +591,15 @@ for(direction in names(camera_res)){
       )
     
     color_lg = ComplexHeatmap::Legend(
-      title = "-log10(p-value)",
+      title = "-log10(FDR)",
       col_fun = col_fun,
       at = c(0, 10, 20),
       labels = c("0", "10", "20"),
       legend_height = unit(4, "cm")
     )
     
+    sex_vec = ifelse(startsWith(colnames(statistic_mat), "F"), "Female",
+                     ifelse(startsWith(colnames(statistic_mat), "M"), "Male", NA))
     ## heatmap
     ht = ComplexHeatmap::Heatmap(
       matrix = matrix( #blank matrix for rectangle template
@@ -583,7 +608,6 @@ for(direction in names(camera_res)){
         ncol = ncol(statistic_mat),
         dimnames = dimnames(statistic_mat)
       ),
-      
       width  = cell_size * ncol(statistic_mat),
       height = cell_size * nrow(statistic_mat),
       
@@ -595,16 +619,30 @@ for(direction in names(camera_res)){
       show_column_names = TRUE,
       column_names_rot = 45,
       column_names_gp = grid::gpar(just = "right"),
-      
       show_row_names = TRUE,
       show_heatmap_legend = FALSE,
-      
       row_names_side = "right",
       column_names_side = "top",
-      
-      
       na_col = "grey95",
       
+      top_annotation = #we only want one top annotation
+        if(ome_i == unique(FCM_CAMERA_SEX_STRATIFIED$ome)[1])
+          ComplexHeatmap::HeatmapAnnotation(
+            sex = ComplexHeatmap::anno_simple(sex_vec, col = sex_cols, border = FALSE),
+            show_annotation_name = FALSE,
+            height = grid::unit(4, "mm")
+          )
+      else NULL,
+      
+      left_annotation = ComplexHeatmap::rowAnnotation(
+        ome = ComplexHeatmap::anno_simple(
+          rep(ome_i, nrow(statistic_mat)),
+          col = ome_cols,
+          border = TRUE
+        ),
+        show_annotation_name = FALSE,
+        width = grid::unit(4, "mm")
+      ),
       heatmap_legend_param = list(
         at = c(0, 20),
         labels = c(0, 20)
@@ -613,16 +651,15 @@ for(direction in names(camera_res)){
         
         fc = statistic_mat[i, j]
         pv = padj_mat[i, j]
+        if (!is.na(pv) && pv < 0.05)
+          grid::grid.rect(x, y, width, height, gp = grid::gpar(fill = "grey90", col = NA))
         
         if (!is.na(pv)) pv = -log10(pv)
-        if (!is.na(pv) && pv > 5) pv = 5
+        if (!is.na(pv) && pv > 5) pv = 5 #just to cap the size. the colors arent capped.
         pv = grid::unit(pv, "mm")
-        
         if (!is.na(fc) && !is.na(pv)) {
-          
           bubble_color = col_fun(fc)
           bubble_radius = pv / 2
-          
           grid::grid.circle(
             x = x,
             y = y,
@@ -644,8 +681,8 @@ for(direction in names(camera_res)){
   
   ComplexHeatmap::draw(
     combined_heatmap,
-    heatmap_legend_list = list(color_lg),
-    merge_legend = FALSE,
+    heatmap_legend_list = list(color_lg, ome_lg, sig_lg, sex_lg),
+    merge_legend = TRUE,
     heatmap_legend_side = "left"
   )
   dev.off()
