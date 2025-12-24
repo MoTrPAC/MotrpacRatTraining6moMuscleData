@@ -12,12 +12,16 @@ library(openxlsx)
 library(forcats)
 library(reshape2)
 library(ggpubr)
-
-library(MotrpacRatTrainingPhysiologyData)
+library(here)
 
 #Author: Nick Day
 
-load("./RD0a_1.1-msnsets_processed_for_phenotype_data.RData")
+load(file.path(
+  here(),
+  "data-raw",
+  "raw_omics_data",
+  "RD0a_1.1-msnsets_processed.RData")
+)
 
 View(pData(m_ls[["m_glob"]]))
 
@@ -32,7 +36,7 @@ ggplot(data=pheno_dat2, aes(x=timepoint, y=value, fill = sex)) +
   theme_classic() +
   stat_summary(fun.data = "mean_sdl", #mean + SD
                fun.args = list(mult = 1),
-    position = position_dodge(width = .75)) +
+               position = position_dodge(width = .75)) +
   scale_fill_manual(values = c("magenta", "blue")) +
   theme(legend.key.size = unit(2,"line"), axis.text = element_text(color = "black")) +
   facet_wrap(~factor(variable, levels = unique(pheno_dat2$variable)), scales = "free")
@@ -49,7 +53,7 @@ ggplot(data=pheno_dat3[pheno_dat3$variable == "glycogen" | pheno_dat3$variable =
   geom_dotplot(binaxis = "y",
                stackdir='center',
                position=position_dodge(0.8)
-               ) +
+  ) +
   theme_classic() +
   geom_pwc( #https://github.com/kassambara/ggpubr/issues/421 to do p value brackets
     aes(group = timepoint),
@@ -75,6 +79,11 @@ ggplot(data=pheno_dat3[pheno_dat3$variable == "glycogen" | pheno_dat3$variable =
         axis.title.x = element_blank(),
         strip.background = element_blank(),
         strip.placement = "outside")
+ggsave(filename = file.path(
+  here(),
+  "plots",
+  "fig1B.pdf"
+))
 
 
 #look at SED and 8W separately for VO2 Max only (supplemental panel)
@@ -104,4 +113,10 @@ ggplot(data=pheno_dat3[pheno_dat3$variable == "delta_vo2max_ml_kg_min", ], aes(x
         axis.title.x = element_blank(),
         strip.background = element_blank(),
         strip.placement = "outside")
+
+ggsave(filename = file.path(
+  here(),
+  "plots",
+  "figS1A.pdf"
+))
 
