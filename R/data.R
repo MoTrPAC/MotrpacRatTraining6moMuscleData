@@ -19,11 +19,6 @@
 #' @rdname SKM_EXP
 #' @format NULL
 #' @usage NULL
-"ATAC_GN"
-
-#' @rdname SKM_EXP
-#' @format NULL
-#' @usage NULL
 "TRNSCRPT_GN"
 
 #' @rdname SKM_EXP

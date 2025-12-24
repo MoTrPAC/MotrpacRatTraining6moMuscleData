@@ -27,9 +27,9 @@ library(Biobase)
 library(dplyr)
 library(ggplot2)
 library(limma)
-# library(MotrpacRatTraining6moMuscleData)
+library(MotrpacRatTraining6moMuscleData)
 
-save_files = TRUE
+save_files = FALSE
 ```
 
 We will test two types of contrasts: sex-matched trained vs. sedentary comparisons and male vs. female comparisons at SED and 8W.

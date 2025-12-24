@@ -29,8 +29,13 @@ library(gridExtra)
 library(edgeR)
 
 
-source(file.path(here(), "data-raw", "raw_omics_data", "splicing_helper_functions.R"))
-gtf_file_path = file.path(here(), "data", "Figures", "Splicing", "Rattus_norvegicus.mRatBN7.2.108.gtf")
+source(file.path(here(), 
+                 "Other_Figures",
+                 "Splicing",
+                 "splicing_helper_functions.R"))
+gtf_file_path = file.path(here(), 
+                          "Other_Figures", 
+                          "Splicing", "Rattus_norvegicus.mRatBN7.2.108.gtf")
 num_cores = 8
 
 conflicts_prefer(dplyr::select,
@@ -229,9 +234,9 @@ for(tissue in desired_tissues){
   
   enrichment_res = read.csv(
     file.path(here(),
-              "Figures",
+              "Other_Figures",
               "Splicing",
-              "data",
+              "splicing_raw_data",
               sprintf("%s_CAMERA.csv", enrichment_code))
   ) %>%
     rename(GeneSet = Set,
@@ -239,7 +244,15 @@ for(tissue in desired_tissues){
   
   plot_for_camera = plot_enrichment_bubble(enrichment_res,
                                            custom_title = paste(tissue, "LRT Enrichments"))
+  pdf(file = file.path(here(),
+                       "plots",
+                       "trajectory_splicing",
+                       sprintf("%s_CAMERA_splicing_enrichment.pdf", enrichment_code)),
+      width = 8, 
+      height = 8
+      )
   print(plot_for_camera)
+  dev.off()
 }
 ```
 ## Junction plotting

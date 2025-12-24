@@ -329,7 +329,7 @@ head(FCM_CAMERA_SEX_STRATIFIED)
 
 ## Plot Top Terms by Cluster
 
-```{r enrichment-bubble-heatmaps, eval=save_plots}
+```{r ORA enrichment-bubble-heatmaps, eval=save_plots}
 ## Bubble heatmaps of tests for gene set localization
 for (ome_i in unique(FCM_ORA_SEX_STRATIFIED$ome)) {
   for(sex_i in c("Female", "Male")){
@@ -391,7 +391,7 @@ for (ome_i in unique(FCM_ORA_SEX_STRATIFIED$ome)) {
 }
 ```
 
-```{r enrichment-bubble-heatmaps, eval=save_plots}
+```{r camera select enrichment-bubble-heatmaps, eval=save_plots}
 ## Bubble heatmaps of tests for gene set localization
 for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
   for(sex_i in c("Female", "Male")){
@@ -450,6 +450,68 @@ for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
               color = c("white", "#503080"),
               filename = file.path("..", "..", "plots", "fuzzy_cmeans", "cameraPR",
                                    sprintf("%s-%s_select-clusters_cmeans_CAMERA.png",
+                                           ome_i, sex_i)),
+              height = height, width = width)
+  }
+}
+```
+
+We also want a version without select clusters for CAMERA
+
+```{r camera all enrichment-bubble-heatmaps, eval=save_plots}
+## Bubble heatmaps of tests for gene set localization
+for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
+  for(sex_i in c("Female", "Male")){
+    x <- FCM_CAMERA_SEX_STRATIFIED %>% 
+      filter(ome == ome_i,
+             sex == sex_i)
+    if(ome_i == "METAB_GN") x$GeneSetShort = x$GeneSet
+    
+    # Select the top n terms by cluster
+    top_terms <- x %>% 
+      filter(adj_p_value < 0.05 + 0.05 * (ome_i == "PHOSPHO_GN")) %>% 
+      slice_min(p_value, n = 10L, by = cluster_num) %>%
+      pull(GeneSetShort) %>% 
+      unique()
+    
+    x <- filter(x, GeneSetShort %in% top_terms) %>% 
+      mutate(logP = -log10(p_value))
+    
+    # Dynamic heatmap height. Each cell of the heatmap is 14 pt, by default
+    height <- convertUnit(length(top_terms) * unit(15, "pt"), "in")
+    height <- max(as.numeric(height) + 0.2, 4) + 1
+    
+    # Dynamic heatmap width
+    row_label_width <- ComplexHeatmap::max_text_width(x[["GeneSet"]])
+    row_label_width <- convertUnit(row_label_width, "in")
+    
+    width <- convertUnit(nlevels(x$cluster_num) * unit(15, "pt"), "in")
+    width <- as.numeric(width + row_label_width) + 6
+    
+    enrichmap(x = x,
+              plot_sig_only = FALSE,
+              n_top = Inf, # plot all terms
+              statistic_column = "logP",
+              set_column = "GeneSet",
+              padj_column = "adj_p_value",
+              padj_legend_title = "BH Adjusted\nP-Value",
+              contrast_column = "cluster_num",
+              heatmap_args = list(
+                na_col = "grey95",
+                rect_gp = gpar(fill = "white", col = "grey85"),
+                cluster_rows = TRUE,
+                cluster_columns = FALSE,
+                heatmap_legend_param = list(
+                  title = latex2exp::TeX(
+                    "$\\bf{$-$log_{10}(P$-$Value)}$"),
+                  at = c(0, 20),
+                  labels = c(0, 20)
+                ),
+                column_names_side = "top"
+              ),
+              color = c("white", "#503080"),
+              filename = file.path("..", "..", "plots", "fuzzy_cmeans", "cameraPR",
+                                   sprintf("%s-%s_cmeans_CAMERA.png",
                                            ome_i, sex_i)),
               height = height, width = width)
   }

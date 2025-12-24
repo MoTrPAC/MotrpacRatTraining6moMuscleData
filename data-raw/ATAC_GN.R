@@ -109,10 +109,8 @@ plotMDS(dge_gn, top = 1e5, label = label, col = color, dim.plot = c(1, 3))
 # Potential outliers. Samples appear to separate by sex
 
 
-# Save -> This data object is 45M, it's quite large but not that crazy.
-usethis::use_data(ATAC_GN, overwrite = TRUE, version = 3)
-
-
+# Don't Save -> This data object is 45M, it's quite large but not that crazy. Could be convinced either way. Not going to include for faster times.
+# usethis::use_data(ATAC_GN, overwrite = TRUE, version = 3)
 
 ## Differential analysis -------------------------------------------------------
 

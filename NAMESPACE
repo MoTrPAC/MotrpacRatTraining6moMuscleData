@@ -2,6 +2,7 @@
 
 export(limmaDEA)
 export(limmaFit)
+export(muscle_ora)
 export(normalize_data)
 importFrom(Biobase,"fData<-")
 importFrom(Biobase,exprs)

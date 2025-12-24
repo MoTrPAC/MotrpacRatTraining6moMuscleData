@@ -3,7 +3,6 @@
 \docType{data}
 \name{SKM_EXP}
 \alias{SKM_EXP}
-\alias{ATAC_GN}
 \alias{TRNSCRPT_GN}
 \alias{PROT_GN}
 \alias{PHOSPHO_GN}
