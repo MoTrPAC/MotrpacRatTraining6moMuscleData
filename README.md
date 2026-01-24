@@ -38,7 +38,7 @@ possible.
 
 If the concern is related to functions provided in the
 <a href="https://github.com/MoTrPAC/MotrpacRatTraining6moMuscleData"
-target="_blank">MotrpacRatTraining6moWAT</a> package, please submit an
+target="_blank">MotrpacRatTraining6moSKM</a> package, please submit an
 issue <a
 href="https://github.com/MoTrPAC/MotrpacRatTraining6moMuscleData/issues"
 target="_blank">here</a> instead.
