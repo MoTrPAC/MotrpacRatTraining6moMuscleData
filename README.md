@@ -22,10 +22,21 @@ recreate the entire project from scratch, like in the case of a new
 genome annotation, refer to the script `regenerate_figures.sh`, because
 some files rely on others in the order of generation.
 
+The vignettes in the package cover visualizations that describe the
+number of genes/proteins/metabolites found to be differentially abundant
+as a result of exercise training, as well as the sets that they are
+enriched in.
+
 ## Installation
 
 ``` r
 devtools::install_github("MoTrPAC/MotrpacRatTraining6moMuscleData")
+```
+
+or, to get vignettes:
+
+``` r
+devtools::install_github("MoTrPAC/MotrpacRatTraining6moMuscleData", build_vignettes = TRUE)
 ```
 
 ## Getting Help
@@ -35,13 +46,6 @@ For questions, bug reporting, and data requests for this package, please
 href="https://github.com/MoTrPAC/MotrpacRatTraining6moMuscleData/issues"
 target="_blank">submit a new issue</a> and include as many details as
 possible.
-
-If the concern is related to functions provided in the
-<a href="https://github.com/MoTrPAC/MotrpacRatTraining6moMuscleData"
-target="_blank">MotrpacRatTraining6moSKM</a> package, please submit an
-issue <a
-href="https://github.com/MoTrPAC/MotrpacRatTraining6moMuscleData/issues"
-target="_blank">here</a> instead.
 
 ## Acknowledgements
 

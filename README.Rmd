@@ -25,21 +25,26 @@ Enrichment analyses (FGSEA or KSEA) for each -ome.
 Weighted Gene Co-expression Network Analysis for all -omes excluding proteomics.
 The `data-raw/` folder contains code to reproduce all analyses. Most R script names match the objects they create, though some scripts create multiple objects, and so are given more general names. Code to reproduce figures are found in `vigenttes` for all of the gene set enrichment analysis, and in the `Other Figures` folders. If you would like to recreate the entire project from scratch, like in the case of a new genome annotation, refer to the script `regenerate_figures.sh`, because some files rely on others in the order of generation. 
 
+The vignettes in the package cover visualizations that describe the number of genes/proteins/metabolites found to be differentially abundant as a result of exercise training, as well as the sets that they are enriched in. 
+
 
 ## Installation
 ``` r
 devtools::install_github("MoTrPAC/MotrpacRatTraining6moMuscleData")
 ```
+
+or, to get vignettes: 
+
+``` r
+devtools::install_github("MoTrPAC/MotrpacRatTraining6moMuscleData", build_vignettes = TRUE)
+```
+
+
 ## Getting Help
 
 For questions, bug reporting, and data requests for this package, please 
 [submit a new issue](https://github.com/MoTrPAC/MotrpacRatTraining6moMuscleData/issues){target="_blank"} 
 and include as many details as possible. 
-
-If the concern is related to functions provided in the 
-[MotrpacRatTraining6moSKM](https://github.com/MoTrPAC/MotrpacRatTraining6moMuscleData){target="_blank"}
-package, please submit an issue 
-[here](https://github.com/MoTrPAC/MotrpacRatTraining6moMuscleData/issues){target="_blank"} instead.
 
 
 ## Acknowledgements 

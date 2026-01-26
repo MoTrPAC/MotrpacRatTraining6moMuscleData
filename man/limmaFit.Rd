@@ -215,5 +215,4 @@ Preprint with corrections: \url{https://gksmyth.github.io/pubs/dupcor.pdf}
 }
 \seealso{
 \code{\link[limma]{limmaUsersGuide}}, \code{\link[limma]{lmFit}},
-\code{\link{paircomp}}
 }

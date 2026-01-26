@@ -147,7 +147,6 @@
 #' @seealso
 #'
 #' \code{\link[limma]{limmaUsersGuide}}, \code{\link[limma]{lmFit}},
-#' \code{\link{paircomp}}
 #'
 #' @examples
 #' library(Biobase)

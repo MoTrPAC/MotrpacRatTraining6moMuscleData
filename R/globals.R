@@ -1,0 +1,16 @@
+utils::globalVariables(
+  c(
+    "data.table",
+    "sets",
+    "setorderv",
+    "elements",
+    "rat_gene_sets",
+    "elements2",
+    "set",
+    "set_size",
+    "set_size_in_input",
+    "background_size",
+    "input_size",
+    "p_value"
+  )
+)

@@ -654,7 +654,6 @@
 #' @usage
 #' TRNSCRPT_GN_REDUNDANT_SETS
 #' PROT_GN_REDUNDANT_SETS
-#' PHOSPHO_GN_REDUNDANT_SETS
 #' ACETYL_GN_REDUNDANT_SETS
 #' REDOX_GN_REDUNDANT_SETS
 #'
@@ -720,48 +719,3 @@
 "REDOX_GN_NORM_REDUNDANT_SETS"
 
 
-
-#' @title Differential analysis incidence tables
-#'
-#' @usage
-#' INCIDENCE_DA
-#'
-#' @format A named list of two \code{data.frame} objects:
-#'
-#' \describe{
-#'   \item{"trained_vs_SED"}{All trained timepoints compared to their
-#'   sex-matched sedentary control group. Example: F_1W - F_SED. Total of 8
-#'   contrasts.}
-#'   \item{"MvF"}{Males compared to females at SED and 8W timepoints.}
-#' }
-#'
-#' Each \code{data.frame} contains the following columns:
-#'
-#' \describe{
-#'   \item{tissue}{the type of skeletal muscle. Either "GN" (gastrocnemius) or
-#'   "VL" (vastus lateralis).}
-#'   \item{ome}{factor; the type of -omics dataset. Either "TRNSCRPT", "PROT",
-#'   "ACETYL", "REDOX", or "METAB".}
-#'   \item{featureName}{character; the feature ID. May be a protein, transcript
-#'   ID, PTM site, or metabolite/lipid.}
-#'   \item{gene_symbol}{character; the corresponding HGNC gene symbol. Not
-#'   applicable for metabolites.}
-#'   \item{key_female}{character; ("trained_vs_SED" results only) a unique key
-#'   indicating the female trained vs. SED contrasts in which the feature was
-#'   differentially abundant.}
-#'   \item{key_male}{character; ("trained_vs_SED" results only) a unique key
-#'   indicating the male trained vs. SED contrasts in which the feature was
-#'   differentially abundant.}
-#'   \item{key}{character; ("MvF" results only) a unique key indicating the
-#'   contrasts in which the feature was differentially abundant.}
-#' }
-#'
-#' The remaining columns are for the contrasts (8 for trained vs. SED, 2 for
-#' male vs. female). A value of 1 indicates that gene set or feature
-#' significantly differed (BH-adjusted p-value < 0.05) between groups, while a
-#' value of 0 indicates they did not. These values are collapsed to form the
-#' \code{key_female} and \code{key_male} columns for more convenient filtering.
-#'
-#' @keywords datasets
-#'
-#' @name INCIDENCE_DA
