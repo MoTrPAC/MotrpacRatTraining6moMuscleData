@@ -203,13 +203,14 @@ for(sex_i in c("Female", "Male")){
                      ylim.set = c(-4,4),
                      fcm_2,
                      min.mem = 0.3,
-                     xlab = "",
+                     xlab = paste(sex_i, "Clusters"),
                      ylab = "",
                      centre = TRUE,
                      time.labels = colnames(esets_zeros),
                      col.axis = "black",
+                     cex.lab = 1.5,
                      cex.axis = 1.5, #axis text size,
-                     cex.main = 2, #main title text size
+                     cex.main = 1.5, #main title text size
                      # single = i,
                      x11 = FALSE)
   dev.off()

@@ -42,7 +42,7 @@ library(MotrpacRatTraining6moMuscleData)
 library(TMSig)
 library(stats)
 library(ggplot2)
-save_files = TRUE
+save_files = FALSE
 ```
   
 ```{r}
@@ -103,37 +103,40 @@ We add the following:
 
 ```{r}
 describe_change = function(previous_ptm = NULL,
-                           normalized_ptm = NULL){
-  df_old <- exprs(previous_ptm) %>% 
-    `colnames<-`(previous_ptm$pid) %>% 
-    as.data.frame() %>% 
-    mutate(featureName = rownames(.)) %>% 
+                           normalized_ptm = NULL,
+                           ome = NULL){
+  df_old <- exprs(previous_ptm) %>%
+    `colnames<-`(previous_ptm$pid) %>%
+    as.data.frame() %>%
+    mutate(featureName = rownames(.)) %>%
     tidyr::pivot_longer(cols = -featureName,
                         names_to = "sample",
                         values_to = "old_value")
-  
+
   df_new <- exprs(normalized_ptm) %>%
-    `colnames<-`(normalized_ptm$pid) %>% 
-    as.data.frame() %>% 
-    mutate(featureName = rownames(.)) %>% 
+    `colnames<-`(normalized_ptm$pid) %>%
+    as.data.frame() %>%
+    mutate(featureName = rownames(.)) %>%
     tidyr::pivot_longer(cols = -featureName,
                         names_to = "sample",
                         values_to = "new_value")
 
-  message(
-    paste0("Previously, there were: ", sum(!is.na(df_old$old_value)), " site-sample combinations")
-  )
-  
-  message(
-    paste0("Now, there are: ", sum(!is.na(df_new$new_value)), " site-sample combinations")
-  )
-  
-  combined_ptms <- left_join(df_old, df_new, 
+  sites_before = length(unique(df_old$featureName))
+  sites_after = length(unique(df_new$featureName))
+  site_sample_before = sum(!is.na(df_old$old_value))
+  site_sample_after = sum(!is.na(df_new$new_value))
+
+  message(paste0("Previously, there were: ", sites_before, " unique sites and ",
+                 site_sample_before, " site-sample combinations"))
+  message(paste0("Now, there are: ", sites_after, " unique sites and ",
+                 site_sample_after, " site-sample combinations"))
+
+  combined_ptms <- left_join(df_old, df_new,
                              by = c("featureName", "sample")) %>%
     filter(!is.na(old_value) & !is.na(new_value))
 
   cor_val = cor(combined_ptms$old_value, combined_ptms$new_value)
-  
+
   p = ggplot(combined_ptms, aes(x = old_value, y = new_value)) +
     geom_point(alpha = 0.5) +
     geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
@@ -149,19 +152,29 @@ describe_change = function(previous_ptm = NULL,
       y = "New value (ptm + sample combo)"
     ) +
     coord_equal()
-  return(p)
+
+  stats = data.frame(
+    ome = ome,
+    sites_before = sites_before,
+    sites_after = sites_after,
+    site_sample_before = site_sample_before,
+    site_sample_after = site_sample_after,
+    correlation = round(cor_val, 3)
+  )
+
+  return(list(plot = p, stats = stats))
 }
 
 ```
 
-# Redox 
+# Redox
 
 ```{r}
 REDOX_GN_NORM <- norm_by_global(global = PROT_GN, ptm = REDOX_GN)
 if(save_files) usethis::use_data(REDOX_GN_NORM, overwrite = TRUE, version = 3)
-  
-p = describe_change(REDOX_GN, REDOX_GN_NORM)
-print(p)
+
+redox_result = describe_change(REDOX_GN, REDOX_GN_NORM, ome = "REDOX_GN")
+print(redox_result$plot)
 ```
 
 # Phospho
@@ -169,9 +182,9 @@ print(p)
 ```{r}
 PHOSPHO_GN_NORM <- norm_by_global(global = PROT_GN, ptm = PHOSPHO_GN)
 if(save_files) usethis::use_data(PHOSPHO_GN_NORM, overwrite = TRUE, version = 3)
-  
-p = describe_change(PHOSPHO_GN, PHOSPHO_GN_NORM)
-print(p)
+
+phospho_result = describe_change(PHOSPHO_GN, PHOSPHO_GN_NORM, ome = "PHOSPHO_GN")
+print(phospho_result$plot)
 ```
 
 # Acetyl
@@ -180,8 +193,24 @@ print(p)
 ACETYL_GN_NORM <- norm_by_global(global = PROT_GN, ptm = ACETYL_GN)
 if(save_files) usethis::use_data(ACETYL_GN_NORM, overwrite = TRUE, version = 3)
 
-p = describe_change(ACETYL_GN, ACETYL_GN_NORM)
-print(p)
+acetyl_result = describe_change(ACETYL_GN, ACETYL_GN_NORM, ome = "ACETYL_GN")
+print(acetyl_result$plot)
+```
+
+# Summary
+
+```{r}
+summary_tbl = bind_rows(
+  redox_result$stats,
+  phospho_result$stats,
+  acetyl_result$stats
+)
+
+knitr::kable(summary_tbl,
+             col.names = c("Ome", "Sites Before", "Sites After",
+                           "Site-Sample Before", "Site-Sample After",
+                           "Correlation"),
+             format.args = list(big.mark = ","))
 ```
 
 
