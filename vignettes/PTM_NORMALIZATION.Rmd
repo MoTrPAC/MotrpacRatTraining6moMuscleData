@@ -199,6 +199,8 @@ print(acetyl_result$plot)
 
 # Summary
 
+If numbers look different compared t
+
 ```{r}
 summary_tbl = bind_rows(
   redox_result$stats,

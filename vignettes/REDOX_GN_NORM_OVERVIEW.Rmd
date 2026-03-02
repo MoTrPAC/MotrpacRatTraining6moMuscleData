@@ -79,6 +79,9 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = sex, shape = timepoint, label = via
     title = "REDOX_GN_NORM PCA"
   ) +
   theme_bw()
+
+# ggsave(filename = file.path(here(), "plots", "pcas", "redox_gn.pdf"))
+
 ```
 
 # Session Info

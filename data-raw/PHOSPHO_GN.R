@@ -20,7 +20,7 @@ ratio_res <- file.path(
   ) %>%
   left_join(refseq_conv_tbl, by = "refseq_peptide") %>%
   mutate(prop_nonmissing = rowMeans(
-    !is.na(across(.cols = starts_with("X90")))
+    !is.na(across(.cols = starts_with("X90"))) #32791    76
   )) %>%
   # Remove contaminants, missingness filter (proteins must be detected in at
   # least 2 plexes)
@@ -30,7 +30,7 @@ ratio_res <- file.path(
   relocate(description, uniprot_gn_id, .after = entrez_id) %>%
   `rownames<-`(.[["ptm_id"]]) %>%
   # Remove protein from ptm_id
-  mutate(ptm_id = sub(".*_", "", ptm_id))
+  mutate(ptm_id = sub(".*_", "", ptm_id)) #21570    73
 
 # Feature data ----
 f_data <- select(ratio_res, -starts_with("X90"))

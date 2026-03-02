@@ -80,6 +80,7 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = sex, shape = timepoint, label = via
     title = "TRNSCRPT_VL PCA"
   ) +
   theme_bw()
+# ggsave(filename = file.path(here(), "plots", "pcas", "trnscrpt_vl.pdf"))
 ```
 
 # Session Info

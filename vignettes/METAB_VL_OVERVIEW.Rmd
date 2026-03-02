@@ -79,6 +79,7 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = sex, shape = timepoint, label = pid
     title = "METAB_VL PCA"
   ) +
   theme_bw()
+# ggsave(filename = file.path(here(), "plots", "pcas", "metab_vl.pdf"))
 ```
 
 # Session Info
