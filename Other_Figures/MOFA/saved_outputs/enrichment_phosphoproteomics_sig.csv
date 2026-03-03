@@ -1,0 +1,6 @@
+"feature_set","factor","pval","padj","sign","view"
+"MAPK3","Factor10",0.00172532085000089,0.015527887650008,"negative","Phosphoproteomics"
+"PRKACA","Factor2",2.49974302546008e-06,2.24976872291407e-05,"positive","Phosphoproteomics"
+"CSNK2A1","Factor3",0.00202109578761774,0.0181898620885596,"positive","Phosphoproteomics"
+"PRKACA","Factor4",0.00490254726540684,0.0441229253886616,"negative","Phosphoproteomics"
+"PRKACA","Factor5",0.000286087007696983,0.00257478306927285,"positive","Phosphoproteomics"

@@ -1,29 +1,354 @@
 ---
-title: "MOFA"
+title: "MOFA Exploration"
 output: html_document
 date: "2026-03-02"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(MOFA2)
+library(Biobase)
+library(dplyr)
+library(edgeR)
+library(tidyr)
+library(here)
+library(MotrpacRatTraining6moMuscleData)
+source(file.path(here(), "Other_Figures", "MOFA", "mofa_helpers.R"))
+
+mofa_out = file.path(here(), "Other_Figures", "MOFA", "saved_outputs")
 ```
 
-## R Markdown
+# Overview
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Multi-Omics Factor Analysis (MOFA) is applied to three gastrocnemius (GN)
+-omic layers: transcriptomics, global proteomics, and
+protein-normalized phosphoproteomics.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# Prepare each ome
 
-```{r cars}
-summary(cars)
+Each ome is reformatted to a features-by-samples matrix with human gene
+symbols (or human UniProt-site IDs for phosphoproteomics) as row names.
+Features with any missing values are removed, and where multiple features map
+to the same symbol, the first is kept (or highest-variance for phosphosites, to 
+meet the recommendations of the MOFA tool in picking higher variance features.).
+
+**Caveat -- complete-case bias:** MOFA requires complete data across all
+samples for each feature. Proteomics and phosphoproteomics contain missing
+values, so we restrict to complete cases before selecting highly variable
+features. This may bias the feature set toward higher-abundance proteins or
+phosphosites that are detected in all samples, and enrichment results should
+be interpreted with this in mind.
+
+
+## Transcriptomics
+
+Log-CPM values are computed from raw counts. Ensembl IDs are mapped to human
+gene symbols via `RAT_TO_HUMAN`. RNA-seq has no missing values.
+
+```{r}
+describe_eset(TRNSCRPT_GN)
+
+gene_symbol_map = RAT_TO_HUMAN %>% select(ensembl, human_symbol)
+trnscrpt_mat = cpm(exprs(TRNSCRPT_GN), log = TRUE) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("ensembl") %>%
+  left_join(gene_symbol_map, by = "ensembl") %>%
+  group_by(human_symbol) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  filter(!is.na(human_symbol)) %>%
+  tibble::column_to_rownames("human_symbol") %>%
+  select(-"ensembl") %>%
+  as.matrix()
+
+cat("Complete features:", nrow(trnscrpt_mat), "\n")
 ```
 
-## Including Plots
+## Proteomics
 
-You can also embed plots, for example:
+Normalized log2 abundance. Protein IDs are mapped to gene symbols via
+`fData(PROT_GN)`. Rows with any missing values are dropped.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+describe_eset(PROT_GN)
+
+gene_symbol_map = fData(PROT_GN) %>% select(protein_id, gene_symbol)
+
+prot_mat = exprs(PROT_GN) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("protein_id") %>%
+  left_join(gene_symbol_map, by = "protein_id") %>%
+  group_by(gene_symbol) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  filter(!is.na(gene_symbol)) %>%
+  tibble::column_to_rownames("gene_symbol") %>%
+  select(-"protein_id") %>%
+  as.matrix()
+prot_mat = prot_mat[complete.cases(prot_mat), ]
+
+cat("Complete features:", nrow(prot_mat), "\n")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Phosphoproteomics (Protein-Normalized)
+
+Phosphoproteomics abundance adjusted for global protein-level changes
+(`PHOSPHO_GN_NORM`). Rat phosphosite IDs are mapped to human UniProt-site
+format (e.g., `Q9Y6K9-S473`) via `RAT_TO_HUMAN_SITE` so that feature names
+match `phospho_GN_NORM_kinase_sets`. Multi-site peptides are split into
+individual sites; when multiple peptides map to the same site, the row with
+the highest variance is kept.
+
+```{r}
+describe_eset(PHOSPHO_GN_NORM)
+
+# Map rat phospho features to human UniProt-site format (matches kinase_sets)
+site_map = fData(PHOSPHO_GN_NORM) %>%
+  tibble::rownames_to_column("feature_id") %>%
+  select(feature_id) %>%
+  left_join(RAT_TO_HUMAN_SITE,
+            by = c("feature_id" = "ptm_id_rat_refseq")) %>%
+  rename(human_feature = ptm_id_human_uniprot) %>%
+  mutate(
+    is_human = !is.na(human_feature),
+    human_feature = ifelse(is_human, human_feature, feature_id),
+    human_uniprot = ifelse(is_human,
+                           sub("_.*", "", human_feature),
+                           sub("([A-Z]P_[^_]+).*", "\\1", human_feature)),
+    human_site = sub(".*_", "", human_feature),
+    human_site = strsplit(human_site, split = ";")
+  ) %>%
+  unnest(cols = human_site) %>%
+  mutate(featureID = paste0(human_uniprot, "-", human_site))
+
+phospho_mat = exprs(PHOSPHO_GN_NORM) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("feature_id") %>%
+  left_join(site_map %>% select(feature_id, featureID), by = "feature_id") %>%
+  select(-feature_id) %>%
+  # For duplicate sites, keep the row with highest variance
+  mutate(row_var = apply(select(., -featureID), 1, var, na.rm = TRUE)) %>%
+  arrange(featureID, -row_var) %>%
+  filter(!duplicated(featureID)) %>%
+  select(-row_var) %>%
+  tibble::column_to_rownames("featureID") %>%
+  as.matrix()
+phospho_mat = phospho_mat[complete.cases(phospho_mat), ]
+
+cat("Complete features:", nrow(phospho_mat), "\n")
+```
+
+# Select top variance features
+
+The ome with the fewest complete features sets a common feature count. The
+top-variance features from each ome are selected to match this count, so that
+MOFA receives balanced views.
+
+```{r}
+n_features = min(nrow(trnscrpt_mat), nrow(prot_mat), nrow(phospho_mat))
+cat("Target feature count (set by smallest ome):", n_features, "\n")
+```
+
+```{r}
+trnscrpt_hvf = select_top_var(trnscrpt_mat, n_features)
+prot_hvf = select_top_var(prot_mat, n_features)
+phospho_hvf = select_top_var(phospho_mat, n_features)
+
+cat("Transcriptomics HVF:", nrow(trnscrpt_hvf), "\n")
+cat("Proteomics HVF:", nrow(prot_hvf), "\n")
+cat("Phospho HVF:", nrow(phospho_hvf), "\n")
+```
+
+# Match samples across omes by pid
+
+Each ome uses different viallabels for the same animal. We remap column names
+from viallabel to pid, then intersect to keep only samples present in all
+three omes. Transcriptomics has 5 samples per sex/timepoint while proteomics
+has 6, so this step also reconciles the unequal sample sizes and removes any
+outlier samples that were dropped from individual omes.
+
+```{r}
+trnscrpt_hvf = remap_to_pid(trnscrpt_hvf, TRNSCRPT_GN)
+prot_hvf = remap_to_pid(prot_hvf, PROT_GN)
+phospho_hvf = remap_to_pid(phospho_hvf, PHOSPHO_GN_NORM)
+
+shared_pids = Reduce(intersect, list(
+  colnames(trnscrpt_hvf),
+  colnames(prot_hvf),
+  colnames(phospho_hvf)
+))
+cat("Shared samples:", length(shared_pids), "\n")
+
+trnscrpt_hvf = trnscrpt_hvf[, shared_pids]
+prot_hvf = prot_hvf[, shared_pids]
+phospho_hvf = phospho_hvf[, shared_pids]
+```
+
+# Build MOFA object
+
+```{r}
+mofa_data = list(
+  Transcriptomics = trnscrpt_hvf,
+  Proteomics = prot_hvf,
+  Phosphoproteomics = phospho_hvf
+)
+
+mofa_obj = create_mofa(mofa_data)
+mofa_obj
+```
+
+```{r}
+plot_data_overview(mofa_obj)
+```
+
+# Add sample metadata
+
+```{r}
+# Build metadata from one of the esets (all share the same pid->sex/timepoint mapping)
+pd = pData(TRNSCRPT_GN) %>%
+  mutate(pid = as.character(pid)) %>%
+  filter(pid %in% shared_pids) %>%
+  select(sample = pid, sex, timepoint) %>%
+  distinct()
+
+samples_metadata(mofa_obj) = pd
+```
+
+# Set MOFA options and train
+
+Views are scaled (`scale_views = TRUE`) so that omes with larger overall
+variance do not dominate factor inference.
+
+```{r}
+data_opts = MOFA2::get_default_data_options(mofa_obj)
+data_opts$scale_views = TRUE
+
+model_opts = MOFA2::get_default_model_options(mofa_obj)
+model_opts$num_factors = 10
+
+train_opts = MOFA2::get_default_training_options(mofa_obj)
+
+mofa_obj = MOFA2::prepare_mofa(
+  mofa_obj,
+  data_options = data_opts,
+  model_options = model_opts,
+  training_options = train_opts
+)
+```
+
+```{r, results='hide', message=FALSE}
+mofa_trained = MOFA2::run_mofa(mofa_obj,
+                               outfile = file.path(here(), "Other_Figures", "MOFA", "mofa_trained.out"),
+                               use_basilisk = TRUE)
+```
+
+# Downstream exploration
+
+## Variance explained
+
+Total and per-factor variance explained by each view.
+
+```{r}
+plot_variance_explained(mofa_trained, plot_total = TRUE)
+```
+
+```{r}
+plot_variance_explained(mofa_trained, max_r2 = 15)
+```
+
+## Factor plots
+
+Visualize sample loadings on the first four factors, colored by experimental
+variables.
+
+```{r, fig.width=8, fig.height=6}
+plot_factor(mofa_trained, factors = 1:4, color_by = "timepoint", shape_by = "sex")
+```
+
+```{r, fig.width=8, fig.height=6}
+plot_factor(mofa_trained, factors = 1:4, color_by = "sex", shape_by = "timepoint")
+```
+
+Factor 2 appears to separate well by sex.
+
+## Factor correlations
+
+```{r}
+plot_factor_cor(mofa_trained)
+```
+
+## Top weights
+
+Top-weighted features per factor for each view.
+
+```{r, fig.width=8, fig.height=6}
+plot_weights(mofa_trained, view = "Transcriptomics", factors = 1:3, nfeatures = 5)
+```
+
+```{r, fig.width=8, fig.height=6}
+plot_weights(mofa_trained, view = "Proteomics", factors = 1:3, nfeatures = 5)
+```
+
+```{r, fig.width=8, fig.height=6}
+plot_weights(mofa_trained, view = "Phosphoproteomics", factors = 1:3, nfeatures = 5)
+```
+
+## Enrichment: Transcriptomics
+
+Gene-set enrichment (GO + skeletal muscle gene sets from `trnscrpt_GN_gene_sets`)
+tested against MOFA factor weights using a parametric test. Feature names are
+uppercased to match the gene-set format. Both positive- and negative-weight
+enrichments are tested for factors 1--10.
+
+```{r}
+names = toupper(features_names(mofa_trained)[["Transcriptomics"]])
+features_names(mofa_trained)[["Transcriptomics"]] = gsub("_TRANSCRIPTOMICS", "", names)
+
+enrichment_trnscrpt = run_mofa_enrichment(mofa_trained,
+  view = "Transcriptomics",
+  feature_sets = trnscrpt_GN_gene_sets,
+  factors = 1:10,
+  csv_path = file.path(mofa_out, "enrichment_transcriptomics.csv")
+)
+```
+
+```{r}
+plot_enrichment_detailed(enrichment_trnscrpt$down,
+  factor = 1,
+  max.genes = 8,
+  max.pathways = 5
+)
+```
+
+## Enrichment: Proteomics
+
+Gene-set enrichment using `prot_GN_gene_sets`.
+
+```{r}
+names = toupper(features_names(mofa_trained)[["Proteomics"]])
+features_names(mofa_trained)[["Proteomics"]] = gsub("_PROTEOMICS", "", names)
+
+enrichment_prot = run_mofa_enrichment(mofa_trained,
+  view = "Proteomics",
+  feature_sets = prot_GN_gene_sets,
+  factors = 1:10,
+  csv_path = file.path(mofa_out, "enrichment_proteomics.csv")
+)
+```
+
+## Enrichment: Phosphoproteomics
+
+Kinase-substrate enrichment using `phospho_GN_NORM_kinase_sets`
+(PhosphoSitePlus). Feature names are in human UniProt-site format to match the
+kinase set definitions.
+
+```{r}
+features_names(mofa_trained)[["Phosphoproteomics"]] = toupper(features_names(mofa_trained)[["Phosphoproteomics"]])
+
+enrichment_phospho = run_mofa_enrichment(mofa_trained,
+  view = "Phosphoproteomics",
+  feature_sets = phospho_GN_NORM_kinase_sets,
+  factors = 1:10,
+  csv_path = file.path(mofa_out, "enrichment_phosphoproteomics.csv")
+)
+```
