@@ -195,6 +195,7 @@ for(sex_i in c("Female", "Male")){
   
   FCM[[sex_i]] = fcm_2
   
+  
   file_name = file.path(here(), "plots/fuzzy_cmeans", paste0(sex_i, ".png"))
   png(file = file_name,
       width = 14, height = 12, units = "in", res = 1200)
@@ -215,6 +216,8 @@ for(sex_i in c("Female", "Male")){
                      x11 = FALSE)
   dev.off()
 }
+
+saveRDS(FCM, file = "~/Downloads/muscle_6mo_FCM.RDS")
 ```
 
 # Localization of Gene Sets to Clusters

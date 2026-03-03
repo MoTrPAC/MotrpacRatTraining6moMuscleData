@@ -1,12 +1,12 @@
 ---
-title: "SKMGN Metabolomics Overview"
+title: "SKMGN Proteomics Overview"
 author: "Christopher Jin"
 date: "Last compiled `r format(Sys.time(), '%d %B, %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
 vignette: >
-  %\VignetteIndexEntry{SKMGN Metabolomics Overview}
+  %\VignetteIndexEntry{SKMGN Proteomics Overview}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -27,12 +27,12 @@ library(ggplot2)
 library(MotrpacRatTraining6moMuscleData)
 ```
 
-`METAB_GN` contains gastrocnemius metabolomics data stored as an `ExpressionSet`. Values in `exprs()` are already log-transformed relative abundances. Samples are identified by participant ID (`pid`).
+`PROT_GN` contains gastrocnemius global proteomics data stored as an `ExpressionSet`. The expression matrix holds median-MAD normalized log2-transformed protein abundance values.
 
 # Data Summary
 
 ```{r}
-eset = METAB_GN
+eset = PROT_GN
 
 cat("Features:", nrow(eset), "\n")
 cat("Samples: ", ncol(eset), "\n")
@@ -58,15 +58,15 @@ var_exp = summary(pca_res)$importance[2, 1:2] * 100
 pd = as.data.frame(pData(eset))
 
 pca_df = as.data.frame(pca_res$x[, 1:2])
-pca_df$pid = rownames(pca_df)
+pca_df$viallabel = rownames(pca_df)
 
 pca_df = pca_df %>%
-  left_join(pd[, c("pid", "sex", "timepoint")] %>% mutate(pid = as.character(pid)), by = "pid") %>%
+  left_join(pd[, c("viallabel", "sex", "timepoint")], by = "viallabel") %>%
   mutate(timepoint = factor(timepoint, levels = c("SED", "1W", "2W", "4W", "8W")))
 ```
 
 ```{r, fig.width=8, fig.height=6}
-ggplot(pca_df, aes(x = PC1, y = PC2, color = sex, shape = timepoint, label = pid)) +
+ggplot(pca_df, aes(x = PC1, y = PC2, color = sex, shape = timepoint, label = viallabel)) +
   geom_point(size = 3) +
   geom_text(size = 2, vjust = -0.6, show.legend = FALSE, check_overlap = TRUE) +
   scale_color_manual(values = c("Female" = "#E7298A", "Male" = "#1B9E77")) +
@@ -76,10 +76,10 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = sex, shape = timepoint, label = pid
     y = sprintf("PC2 (%.1f%%)", var_exp[2]),
     color = "Sex",
     shape = "Timepoint",
-    title = "METAB_GN PCA"
+    title = "PROT_GN PCA"
   ) +
   theme_bw()
-ggsave(filename = file.path(here(), "plots", "pcas", "metab_gn.pdf"))
+ggsave(filename = file.path(here(), "plots", "pcas", "prot_gn.pdf"))
 ```
 
 # Session Info

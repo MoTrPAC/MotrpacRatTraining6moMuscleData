@@ -79,8 +79,7 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = sex, shape = timepoint, label = via
     title = "ACETYL_GN_NORM PCA"
   ) +
   theme_bw()
-# ggsave(filename = file.path(here(), "plots", "pcas", "acetyl_gn.pdf"))
-
+ggsave(filename = file.path(here(), "plots", "pcas", "acetyl_gn.pdf"))
 ```
 
 # Session Info
