@@ -25,7 +25,7 @@ colnames(counts_GN) <- sub("^X", "", colnames(counts_GN))
 
 
 ## Convert from ensembl gene IDs to gene symbols ----
-mart <- useEnsembl(
+mart <- biomaRt::useEnsembl(
   biomart = "genes",
   dataset = "rnorvegicus_gene_ensembl",
   version = 110#,
@@ -146,7 +146,7 @@ TRNSCRPT_GN <- ExpressionSet(
   featureData = featureData
 )
 
-dim(TRNSCRPT_GN) # 13034 features, 50 samples
+dim(TRNSCRPT_GN) # 14201 features, 50 samples
 
 
 # Save

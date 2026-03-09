@@ -592,6 +592,58 @@ epi_v_motr_camera_motr_fvm_plot <-epi_v_motr_camera %>%
 ggplotly(epi_v_motr_camera_motr_fvm_plot)
 ```
 
+
+## Reviewer comments
+
+What is driving the negative correlation between male rat and male human?
+
+```{r}
+#| label: reviewer-comments
+#| echo: false
+#| message: false
+#| warning: false
+
+# make a new df
+rat_v_human_male <- tibble::tibble(
+  male_rat = epi_v_motr_camera$ZScore_m_motr,
+  male_human = epi_v_motr_camera$ZScore_m_epi
+) %>% data.frame()
+rownames(rat_v_human_male) <- epi_v_motr_camera$GeneSet
+
+# fit lm
+rat_v_human_male_lm <- lm(male_rat ~ male_human, data = rat_v_human_male)
+summary(rat_v_human_male_lm)
+
+# influential points
+inflm.rat_v_human_male <- influence.measures(rat_v_human_male_lm)
+
+which(apply(inflm.rat_v_human_male$is.inf, 1, any)) %>% length
+# 337 out of 5727 points
+inf.points <- which(apply(inflm.rat_v_human_male$is.inf, 1, any)) %>% names
+
+# scatter plot
+rat_v_human_male_p <- rat_v_human_male %>% 
+  tibble::rownames_to_column("GeneSet") %>% 
+  ggplot(aes(male_human, male_rat, label = GeneSet)) +
+  geom_point() +
+  geom_point(data = . %>% dplyr::filter(GeneSet %in% inf.points),
+             col = "red") +
+  theme_bw()
+
+ggplotly(rat_v_human_male_p)
+# looks like the terms driving the negative correlation are -
+# ribosomal (positive in rat, negative in human)
+# ECM (negative in rat, positive in human)
+
+# keep these terms and re-compute correlation
+rat_v_human_male %>% 
+  tibble::rownames_to_column("GeneSet") %>% 
+  dplyr::filter(str_detect(GeneSet, "(RIBOSO|EXTRACELL)")) %>% 
+  dplyr::summarise(cor(male_rat, male_human,
+                       method = "spearman"))
+# -0.5412475
+```
+
 <!-- ## Additional plots -->
 
 ```{r}
