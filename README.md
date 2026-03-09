@@ -1,6 +1,8 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
 <!-- badges: start -->
+
 <!-- badges: end -->
 
 ## Overview
@@ -12,20 +14,24 @@ Underlying Muscle Adaptation to Endurance Training”
 Differential analysis of transcriptomics, proteomics, phosphoproteomics,
 and metabolomics subcutaneous white adipose tissue -omics datasets.
 Enrichment analyses (FGSEA or KSEA) for each -ome. Weighted Gene
-Co-expression Network Analysis for all -omes excluding proteomics. The
-`data-raw/` folder contains code to reproduce all analyses. Most R
+Co-expression Network Analysis for all -omes excluding proteomics.
+
+The `data-raw/` folder contains code to reproduce all analyses. Most R
 script names match the objects they create, though some scripts create
 multiple objects, and so are given more general names. Code to reproduce
-figures are found in `vigenttes` for all of the gene set enrichment
-analysis, and in the `Other Figures` folders. If you would like to
-recreate the entire project from scratch, like in the case of a new
-genome annotation, refer to the script `regenerate_figures.sh`, because
-some files rely on others in the order of generation.
+figures are found in `vignettes` for all of the gene set enrichment
+analysis, and in the `Other Figures` folders.
+
+**If you would like to recreate the entire project from scratch**, like
+in the case of a new genome annotation, refer to the script
+`regenerate_figures.sh`, because some files rely on others in the order
+of generation.
 
 The vignettes in the package cover visualizations that describe the
 number of genes/proteins/metabolites found to be differentially abundant
 as a result of exercise training, as well as the sets that they are
-enriched in.
+enriched in. They also give an overview of the number of features per
+ome, missingness in things like proteomics platforms, etc.
 
 ## Installation
 
@@ -33,7 +39,7 @@ enriched in.
 devtools::install_github("MoTrPAC/MotrpacRatTraining6moMuscleData")
 ```
 
-or, to get vignettes:
+or, to get vignettes (**Highly recommended**):
 
 ``` r
 devtools::install_github("MoTrPAC/MotrpacRatTraining6moMuscleData", build_vignettes = TRUE)

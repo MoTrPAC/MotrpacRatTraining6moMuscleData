@@ -15,6 +15,17 @@ knitr::opts_chunk$set(
 save_plots <- dir.exists(file.path("..", "..", "plots"))
 ```
 
+Documentation:
+
+We present the CAMERA-PR results as the primary results in the manuscript, primarily
+because the membership probability is an easy, continuous marker that can be used for CAMERA. 
+
+One large reason I don't present the ORA (e.g. fischer exact for features in cluster) as the primary result is mainly due to concerns with the arbitrary
+number of clusters, and the potential relatively small number of features in each cluster, which ORA can be very sensitive to. 
+
+However, I realize just doing the fischer exact is the more common tool in the literature, and so those results are included for comparison purposes.
+
+
 ```{r setup, warning=FALSE, message=FALSE}
 # Required packages
 library(Biobase)
@@ -32,6 +43,7 @@ library(here)
 library(data.table)
 
 num_clusters = 12
+source(here::here("Other_Figures", "cmeans", "cmeans_helpers.R"))
 ```
 
 # Prepare Input
@@ -130,25 +142,6 @@ eset <- ExpressionSet(
 eset # summary of ExpressionSet object
 ```
 
-```{r reorder-clusters}
-# Reorder clusters so those with similar trajectories are consecutive
-reorder_clusters <- function(fclust) {
-  d <- as.dist(1 - cor(t(fclust$centers)))
-  hc <- hclust(d)
-  neworder <- hc$order
-  
-  fclust$centers <- fclust$centers[neworder, ]
-  rownames(fclust$centers) <- seq_len(nrow(fclust$centers))
-  
-  fclust$size <- fclust$size[neworder]
-  
-  fclust$cluster[] <- match(fclust$cluster, neworder)
-  fclust$membership <- fclust$membership[, neworder]
-  colnames(fclust$membership) <- seq_len(ncol(fclust$membership))
-  
-  return(fclust)
-}
-```
 
 ```{r eval=TRUE}
 # Fuzzy C-Means (FCM) clustering ----
@@ -194,7 +187,6 @@ for(sex_i in c("Female", "Male")){
     reorder_clusters()
   
   FCM[[sex_i]] = fcm_2
-  
   
   file_name = file.path(here(), "plots/fuzzy_cmeans", paste0(sex_i, ".png"))
   png(file = file_name,
@@ -618,126 +610,17 @@ for(direction in names(camera_res)){
       mutate(logP = -log10(p_value)) %>%
       arrange(sex_cluster_pattern)
     
-    # Dynamic heatmap height. Each cell of the heatmap is 14 pt, by default
-    height <- convertUnit(length(top_terms) * unit(15, "pt"), "in")
-    height <- max(as.numeric(height) + 0.2, 4) + 1
-    
-    # Dynamic heatmap width
-    row_label_width <- ComplexHeatmap::max_text_width(x[["GeneSetShort"]])
-    row_label_width <- convertUnit(row_label_width, "in")
-    
-    width <- convertUnit(nlevels(x$cluster_num) * unit(15, "pt"), "in")
-    width <- as.numeric(width + row_label_width) + 6
-    
-    statistic_mat = x %>%
-      select(GeneSetShort, sex_cluster_pattern, logP) %>%
-      tidyr::pivot_wider(
-        names_from = sex_cluster_pattern,
-        values_from = logP
-      ) %>%
-      as.data.frame() %>%
-      `rownames<-`(.$GeneSetShort) %>%
-      select(-GeneSetShort) %>%
-      as.matrix()
-    
-    padj_mat = x %>%
-      select(GeneSetShort, sex_cluster_pattern, adj_p_value) %>%
-      tidyr::pivot_wider(
-        names_from = sex_cluster_pattern,
-        values_from = adj_p_value
-      ) %>%
-      as.data.frame() %>%
-      `rownames<-`(.$GeneSetShort) %>%
-      select(-GeneSetShort) %>%
-      as.matrix()
-    
-    ## color function
-    col_fun =
-      circlize::colorRamp2(
-        c(0, max(statistic_mat, na.rm = TRUE)),
-        c("white", "#503080")
-      )
-    
-    color_lg = ComplexHeatmap::Legend(
-      title = "-log10(FDR)",
-      col_fun = col_fun,
-      at = c(0, 10, 20),
-      labels = c("0", "10", "20"),
-      legend_height = unit(4, "cm")
+    statistic_mat = pivot_to_matrix(x, "GeneSetShort", "sex_cluster_pattern", "logP")
+    padj_mat = pivot_to_matrix(x, "GeneSetShort", "sex_cluster_pattern", "adj_p_value")
+
+    col_fun = make_col_fun(statistic_mat)
+    color_lg = make_color_legend(col_fun)
+
+    is_first_ome = ome_i == unique(FCM_CAMERA_SEX_STRATIFIED$ome)[1]
+    camera_heatmaps[[ome_i]] = make_camera_heatmap(
+      statistic_mat, padj_mat, col_fun,
+      cell_size, sex_cols, ome_cols, ome_i, is_first_ome
     )
-    
-    sex_vec = ifelse(startsWith(colnames(statistic_mat), "F"), "Female",
-                     ifelse(startsWith(colnames(statistic_mat), "M"), "Male", NA))
-    ## heatmap
-    ht = ComplexHeatmap::Heatmap(
-      matrix = matrix( #blank matrix for rectangle template
-        NA_real_,
-        nrow = nrow(statistic_mat),
-        ncol = ncol(statistic_mat),
-        dimnames = dimnames(statistic_mat)
-      ),
-      width  = cell_size * ncol(statistic_mat),
-      height = cell_size * nrow(statistic_mat),
-      
-      cluster_rows = FALSE,
-      cluster_columns = FALSE,
-      
-      rect_gp = grid::gpar(fill = NA, col = "grey85"),
-      
-      show_column_names = TRUE,
-      column_names_rot = 45,
-      column_names_gp = grid::gpar(just = "right"),
-      show_row_names = TRUE,
-      show_heatmap_legend = FALSE,
-      row_names_side = "right",
-      column_names_side = "top",
-      na_col = "grey95",
-      
-      top_annotation = #we only want one top annotation
-        if(ome_i == unique(FCM_CAMERA_SEX_STRATIFIED$ome)[1])
-          ComplexHeatmap::HeatmapAnnotation(
-            sex = ComplexHeatmap::anno_simple(sex_vec, col = sex_cols, border = FALSE),
-            show_annotation_name = FALSE,
-            height = grid::unit(4, "mm")
-          )
-      else NULL,
-      
-      left_annotation = ComplexHeatmap::rowAnnotation(
-        ome = ComplexHeatmap::anno_simple(
-          rep(ome_i, nrow(statistic_mat)),
-          col = ome_cols,
-          border = TRUE
-        ),
-        show_annotation_name = FALSE,
-        width = grid::unit(4, "mm")
-      ),
-      heatmap_legend_param = list(
-        at = c(0, 20),
-        labels = c(0, 20)
-      ),
-      cell_fun = function(j, i, x, y, width, height, fill) {
-        
-        fc = statistic_mat[i, j]
-        pv = padj_mat[i, j]
-        if (!is.na(pv) && pv < 0.05)
-          grid::grid.rect(x, y, width, height, gp = grid::gpar(fill = "grey90", col = NA))
-        
-        if (!is.na(pv)) pv = -log10(pv)
-        if (!is.na(pv) && pv > 5) pv = 5 #just to cap the size. the colors arent capped.
-        pv = grid::unit(pv, "mm")
-        if (!is.na(fc) && !is.na(pv)) {
-          bubble_color = col_fun(fc)
-          bubble_radius = pv / 2
-          grid::grid.circle(
-            x = x,
-            y = y,
-            r = bubble_radius,
-            gp = grid::gpar(fill = bubble_color, col = NA)
-          )
-        }
-      }
-    )
-    camera_heatmaps[[ome_i]] = ht
   }
   combined_heatmap =  Reduce(`%v%`, camera_heatmaps)
   
@@ -777,125 +660,17 @@ for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
     mutate(logP = -log10(p_value)) %>%
     arrange(sex, cluster_num)
   
-  # Dynamic heatmap height. Each cell of the heatmap is 14 pt, by default
-  height <- convertUnit(length(top_terms) * unit(15, "pt"), "in")
-  height <- max(as.numeric(height) + 0.2, 4) + 1
-  
-  # Dynamic heatmap width
-  row_label_width <- ComplexHeatmap::max_text_width(x[["GeneSetShort"]])
-  row_label_width <- convertUnit(row_label_width, "in")
-  
-  width <- convertUnit(nlevels(x$cluster_num) * unit(15, "pt"), "in")
-  width <- as.numeric(width + row_label_width) + 6
-  
-  statistic_mat = x %>%
-    select(GeneSetShort, sex_cluster_pattern, logP) %>%
-    tidyr::pivot_wider(
-      names_from = sex_cluster_pattern,
-      values_from = logP
-    ) %>%
-    as.data.frame() %>%
-    `rownames<-`(.$GeneSetShort) %>%
-    select(-GeneSetShort) %>%
-    as.matrix()
-  
-  padj_mat = x %>%
-    select(GeneSetShort, sex_cluster_pattern, adj_p_value) %>%
-    tidyr::pivot_wider(
-      names_from = sex_cluster_pattern,
-      values_from = adj_p_value
-    ) %>%
-    as.data.frame() %>%
-    `rownames<-`(.$GeneSetShort) %>%
-    select(-GeneSetShort) %>%
-    as.matrix()
-  
-  col_fun =
-    circlize::colorRamp2(
-      c(0, max(statistic_mat, na.rm = TRUE)),
-      c("white", "#503080")
-    )
-  color_lg = ComplexHeatmap::Legend(
-    title = "-log10(FDR)",
-    col_fun = col_fun,
-    at = c(0, 10, 20),
-    labels = c("0", "10", "20"),
-    legend_height = unit(4, "cm")
+  statistic_mat = pivot_to_matrix(x, "GeneSetShort", "sex_cluster_pattern", "logP")
+  padj_mat = pivot_to_matrix(x, "GeneSetShort", "sex_cluster_pattern", "adj_p_value")
+
+  col_fun = make_col_fun(statistic_mat)
+  color_lg = make_color_legend(col_fun)
+
+  is_first_ome = ome_i == unique(FCM_CAMERA_SEX_STRATIFIED$ome)[1]
+  camera_heatmaps_supplement[[ome_i]] = make_camera_heatmap(
+    statistic_mat, padj_mat, col_fun,
+    cell_size, sex_cols, ome_cols, ome_i, is_first_ome
   )
-  
-  
-  sex_vec = ifelse(startsWith(colnames(statistic_mat), "F"), "Female",
-                   ifelse(startsWith(colnames(statistic_mat), "M"), "Male", NA))
-  ## heatmap
-  ht = ComplexHeatmap::Heatmap(
-    matrix = matrix( #blank matrix for rectangle template
-      NA_real_,
-      nrow = nrow(statistic_mat),
-      ncol = ncol(statistic_mat),
-      dimnames = dimnames(statistic_mat)
-    ),
-    width  = cell_size * ncol(statistic_mat),
-    height = cell_size * nrow(statistic_mat),
-    
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    
-    rect_gp = grid::gpar(fill = NA, col = "grey85"),
-    
-    show_column_names = TRUE,
-    column_names_rot = 45,
-    column_names_gp = grid::gpar(just = "right"),
-    show_row_names = TRUE,
-    show_heatmap_legend = FALSE,
-    row_names_side = "right",
-    column_names_side = "top",
-    na_col = "grey95",
-    
-    top_annotation = #we only want one top annotation
-      if(ome_i == unique(FCM_CAMERA_SEX_STRATIFIED$ome)[1])
-        ComplexHeatmap::HeatmapAnnotation(
-          sex = ComplexHeatmap::anno_simple(sex_vec, col = sex_cols, border = FALSE),
-          show_annotation_name = FALSE,
-          height = grid::unit(4, "mm")
-        )
-    else NULL,
-    
-    left_annotation = ComplexHeatmap::rowAnnotation(
-      ome = ComplexHeatmap::anno_simple(
-        rep(ome_i, nrow(statistic_mat)),
-        col = ome_cols,
-        border = TRUE
-      ),
-      show_annotation_name = FALSE,
-      width = grid::unit(4, "mm")
-    ),
-    heatmap_legend_param = list(
-      at = c(0, 20),
-      labels = c(0, 20)
-    ),
-    cell_fun = function(j, i, x, y, width, height, fill) {
-      
-      fc = statistic_mat[i, j]
-      pv = padj_mat[i, j]
-      if (!is.na(pv) && pv < 0.05)
-        grid::grid.rect(x, y, width, height, gp = grid::gpar(fill = "grey90", col = NA))
-      
-      if (!is.na(pv)) pv = -log10(pv)
-      if (!is.na(pv) && pv > 5) pv = 5 #just to cap the size. the colors arent capped.
-      pv = grid::unit(pv, "mm")
-      if (!is.na(fc) && !is.na(pv)) {
-        bubble_color = col_fun(fc)
-        bubble_radius = pv / 2
-        grid::grid.circle(
-          x = x,
-          y = y,
-          r = bubble_radius,
-          gp = grid::gpar(fill = bubble_color, col = NA)
-        )
-      }
-    }
-  )
-  camera_heatmaps_supplement[[ome_i]] = ht
 }
 combined_heatmap =  Reduce(`%v%`, camera_heatmaps_supplement)
 
@@ -913,7 +688,36 @@ ComplexHeatmap::draw(
 )
 dev.off()
 
-# }
+
+```
+Now based on some of the more interesting pathways that we'd like to expand on, we're going to make some feature heatmaps
+
+```{r}
+pathway_ome = "PROT_GN"; da_object = PROT_GN_DA$trained_vs_SED
+interested_pathways = c(7550, #respirome
+                        4605 #purine deoxyribonucleoside... 
+)
+pathway_names = SET_TO_ID %>% filter(GeneSetID %in% interested_pathways) 
+
+relevant_pathways = index_list[[pathway_ome]]
+filt_index = relevant_pathways[names(relevant_pathways) %in% pathway_names$GeneSet]
+
+
+lapply(names(filt_index), FUN = function(pathway_name){
+  interested_features = filt_index[[pathway_name]]
+  ht = feature_heatmap(interested_genes = interested_features,
+                       da_results = da_object,
+                       filter_nonsig = TRUE,
+                       scale = 2,
+                       title = "")
+  safe_name = gsub("[^A-Za-z0-9_-]", "_", pathway_name)
+  pdf_path = file.path(here(), "plots", "fuzzy_cmeans", "heatmaps",
+                       paste0("PROT_", safe_name, ".pdf"))
+  pdf(pdf_path, height = 9)
+  print(ht)
+  dev.off()
+})
+
 ```
 
 
