@@ -335,7 +335,7 @@ for (ome_i in unique(FCM_ORA_SEX_STRATIFIED$ome)) {
   for(sex_i in c("Female", "Male")){
     
     if(sex_i == "Female") desired_clusters = c(2, 3, 8, 11)
-    if(sex_i == "Male") desired_clusters = c(1, 5, 7, 12)
+    if(sex_i == "Male") desired_clusters = c(1, 4, 7, 12)
     
     x <- FCM_ORA_SEX_STRATIFIED %>%
       filter(ome == ome_i,
@@ -397,7 +397,7 @@ for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
   for(sex_i in c("Female", "Male")){
     
     if(sex_i == "Female") desired_clusters = c(2, 3, 8, 11)
-    if(sex_i == "Male") desired_clusters = c(1, 5, 7, 12)
+    if(sex_i == "Male") desired_clusters = c(1, 4, 7, 12)
     
     x <- FCM_CAMERA_SEX_STRATIFIED %>% 
       filter(ome == ome_i,
@@ -540,7 +540,7 @@ CAMERA_filtered_up =
   FCM_CAMERA_SEX_STRATIFIED %>%
   filter(
     (sex == "Female" & cluster_num %in% c(2, 3)) |
-      (sex == "Male"   & cluster_num %in% c(5, 7))
+      (sex == "Male"   & cluster_num %in% c(4, 7))
   ) %>%
   mutate(
     sex_cluster_pattern =
@@ -548,7 +548,7 @@ CAMERA_filtered_up =
         sex == "Female" & cluster_num == 3 ~ "F Continuous Up",
         sex == "Female" & cluster_num == 2 ~ "F Transient Up",
         sex == "Male"   & cluster_num == 7 ~ "M Continuous Up",
-        sex == "Male"   & cluster_num == 5 ~ "M Transient Up",
+        sex == "Male"   & cluster_num == 4 ~ "M Transient Up",
         TRUE ~ NA_character_
       )
   )
