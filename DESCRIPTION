@@ -11,7 +11,11 @@ Authors@R:
       person(given = "Tyler", family = "Sagendorf", 
              email = "tyler.sagendorf@pnnl.gov",
              comment = c(ORCID = "0000-0003-1552-4870"),
-             role = c("aut", "cre"))
+             role = c("aut", "cre")),
+      person(given = "Damon", family = "Leach",
+             email = "damon.leach@pnnl.gov",
+             comment = c(ORCID = "0000-0003-4752-0380"),
+             role = c("aut"))
       )
 Description: An R package containing data and analysis results of MoTrPAC PASS1B 
     skeletal muscle (gastrocnemius and vastus lateralis) taken from rats that 
