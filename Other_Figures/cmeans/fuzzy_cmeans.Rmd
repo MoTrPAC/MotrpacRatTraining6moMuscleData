@@ -695,7 +695,7 @@ Now based on some of the more interesting pathways that we'd like to expand on, 
 ```{r}
 pathway_ome = "PROT_GN"; da_object = PROT_GN_DA$trained_vs_SED
 interested_pathways = c(7550, #respirome
-                        4605 #purine deoxyribonucleoside... 
+                        4609 #purine deoxyribonucleoside... 
 )
 pathway_names = SET_TO_ID %>% filter(GeneSetID %in% interested_pathways) 
 
