@@ -11,6 +11,7 @@ library(Biobase)
 library(dplyr)
 library(edgeR)
 library(tidyr)
+library(ggplot2)
 library(here)
 library(MotrpacRatTraining6moMuscleData)
 source(file.path(here(), "Other_Figures", "MOFA", "mofa_helpers.R"))
@@ -20,8 +21,9 @@ mofa_out = file.path(here(), "Other_Figures", "MOFA", "saved_outputs")
 
 # Overview
 
-Multi-Omics Factor Analysis (MOFA) omic layers: transcriptomics, global proteomics, and
-(protein-normalized) phosphoproteomics.
+Multi-Omics Factor Analysis (MOFA) omic layers: transcriptomics, global proteomics,
+(protein-normalized) phosphoproteomics, (protein-normalized) redox proteomics, and
+metabolomics.
 
 # Prepare each ome
 
@@ -29,7 +31,7 @@ Features with any missing values are removed, and where multiple features map
 to the same symbol, the first is kept (or highest-variance for phosphosites, to 
 meet the recommendations of the MOFA tool in picking higher variance features).
 
-**Note: possible complete-case bias:** MOFA requires complete data across all
+**Note: possible complete-case bias:** MOFA input is currently complete data across all
 samples for each feature. Proteomics and phosphoproteomics contain missing
 values, so we restrict to complete cases before selecting highly variable
 features. This may bias the feature set toward higher-abundance proteins or
@@ -128,12 +130,71 @@ phospho_mat = phospho_mat[complete.cases(phospho_mat), ]
 cat("Complete features:", nrow(phospho_mat), "\n")
 ```
 
+## Redox Proteomics (Protein-Normalized)
+
+Log2 abundance adjusted for global protein changes. Features mapped to rat gene symbols;
+duplicate sites per gene are resolved by highest variance.
+
+```{r}
+describe_eset(REDOX_GN_NORM)
+
+redox_feature_map = fData(REDOX_GN_NORM) %>%
+  tibble::rownames_to_column("feature_id") %>%
+  select(feature_id, gene_symbol)
+
+redox_mat = exprs(REDOX_GN_NORM) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("feature_id") %>%
+  left_join(redox_feature_map, by = "feature_id") %>%
+  select(-feature_id) %>%
+  filter(!is.na(gene_symbol)) %>%
+  mutate(row_var = apply(select(., -gene_symbol), 1, var, na.rm = TRUE)) %>%
+  arrange(gene_symbol, -row_var) %>%
+  filter(!duplicated(gene_symbol)) %>%
+  select(-row_var) %>%
+  tibble::column_to_rownames("gene_symbol") %>%
+  as.matrix()
+redox_mat = redox_mat[complete.cases(redox_mat), ]
+
+cat("Complete features:", nrow(redox_mat), "\n")
+```
+
+## Metabolomics
+
+Normalized log2 abundance. Features are mapped to RefMet standardized names; where a
+metabolite appears in multiple datasets the highest-variance row is retained.
+
+```{r}
+describe_eset(METAB_GN)
+
+metab_feature_map = fData(METAB_GN) %>%
+  tibble::rownames_to_column("feature_id") %>%
+  select(feature_id, refmet_name = metabolite_refmet)
+
+metab_mat = exprs(METAB_GN) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("feature_id") %>%
+  left_join(metab_feature_map, by = "feature_id") %>%
+  select(-feature_id) %>%
+  filter(!is.na(refmet_name)) %>%
+  mutate(row_var = apply(select(., -refmet_name), 1, var, na.rm = TRUE)) %>%
+  arrange(refmet_name, -row_var) %>%
+  filter(!duplicated(refmet_name)) %>%
+  select(-row_var) %>%
+  tibble::column_to_rownames("refmet_name") %>%
+  as.matrix()
+metab_mat = metab_mat[complete.cases(metab_mat), ]
+
+cat("Complete features:", nrow(metab_mat), "\n")
+```
+
 # Select top variance features
 
 Filter to same number of features per ome
 
 ```{r}
-n_features = min(nrow(trnscrpt_mat), nrow(prot_mat), nrow(phospho_mat))
+n_features = min(nrow(trnscrpt_mat), nrow(prot_mat), nrow(phospho_mat),
+                 nrow(redox_mat), nrow(metab_mat))
 cat("Target feature count (set by smallest ome):", n_features, "\n")
 ```
 
@@ -141,31 +202,42 @@ cat("Target feature count (set by smallest ome):", n_features, "\n")
 trnscrpt_hvf = select_top_var(trnscrpt_mat, n_features)
 prot_hvf = select_top_var(prot_mat, n_features)
 phospho_hvf = select_top_var(phospho_mat, n_features)
+redox_hvf = select_top_var(redox_mat, n_features)
+metab_hvf = select_top_var(metab_mat, n_features)
 
 cat("Transcriptomics HVF:", nrow(trnscrpt_hvf), "\n")
 cat("Proteomics HVF:", nrow(prot_hvf), "\n")
 cat("Phospho HVF:", nrow(phospho_hvf), "\n")
+cat("Redox HVF:", nrow(redox_hvf), "\n")
+cat("Metabolomics HVF:", nrow(metab_hvf), "\n")
 ```
 
 # Match samples across omes by pid
 
-Filter to the shared set of animals for the multiple omes (transcrpt has 5 male + 5 female/timepoint, prot has 6 + 6)
+Filter to the shared set of animals across all omes (transcriptomics has 5M+5F/timepoint,
+proteomics/phospho/redox have 6+6; metabolomics has its own sample set).
 
 ```{r}
 trnscrpt_hvf = remap_to_pid(trnscrpt_hvf, TRNSCRPT_GN)
 prot_hvf = remap_to_pid(prot_hvf, PROT_GN)
 phospho_hvf = remap_to_pid(phospho_hvf, PHOSPHO_GN_NORM)
+redox_hvf = remap_to_pid(redox_hvf, REDOX_GN_NORM)
+# METAB_GN columns are already pid values; no remap needed
 
 shared_pids = Reduce(intersect, list(
   colnames(trnscrpt_hvf),
   colnames(prot_hvf),
-  colnames(phospho_hvf)
+  colnames(phospho_hvf),
+  colnames(redox_hvf),
+  colnames(metab_hvf)
 ))
 cat("Shared samples:", length(shared_pids), "\n")
 
 trnscrpt_hvf = trnscrpt_hvf[, shared_pids]
 prot_hvf = prot_hvf[, shared_pids]
 phospho_hvf = phospho_hvf[, shared_pids]
+redox_hvf = redox_hvf[, shared_pids]
+metab_hvf = metab_hvf[, shared_pids]
 ```
 
 # Build MOFA object
@@ -174,7 +246,9 @@ phospho_hvf = phospho_hvf[, shared_pids]
 mofa_data = list(
   Transcriptomics = trnscrpt_hvf,
   Proteomics = prot_hvf,
-  Phosphoproteomics = phospho_hvf
+  Phosphoproteomics = phospho_hvf,
+  Redox = redox_hvf,
+  Metabolomics = metab_hvf
 )
 
 mofa_obj = create_mofa(mofa_data)
@@ -188,7 +262,7 @@ plot_data_overview(mofa_obj)
 # Add sample metadata
 
 ```{r}
-# Build metadata from one of the esets (all share the same pid->sex/timepoint mapping)
+# Build metadata from transcriptomics pData (all omes share pid->sex/timepoint mapping)
 pd = pData(TRNSCRPT_GN) %>%
   mutate(pid = as.character(pid)) %>%
   filter(pid %in% shared_pids) %>%
@@ -233,10 +307,6 @@ Total and per-factor variance explained by each view.
 plot_variance_explained(mofa_trained, plot_total = TRUE)
 ```
 
-```{r}
-plot_variance_explained(mofa_trained, max_r2 = 15)
-```
-
 ## Factor plots
 
 Visualize sample loadings on the first four factors, colored by experimental
@@ -274,6 +344,14 @@ plot_weights(mofa_trained, view = "Proteomics", factors = 1:3, nfeatures = 5)
 plot_weights(mofa_trained, view = "Phosphoproteomics", factors = 1:3, nfeatures = 5)
 ```
 
+```{r, fig.width=8, fig.height=6}
+plot_weights(mofa_trained, view = "Redox", factors = 1:3, nfeatures = 5)
+```
+
+```{r, fig.width=8, fig.height=6}
+plot_weights(mofa_trained, view = "Metabolomics", factors = 1:3, nfeatures = 5)
+```
+
 ## Enrichment: Transcriptomics
 
 ```{r}
@@ -281,18 +359,18 @@ names = toupper(features_names(mofa_trained)[["Transcriptomics"]])
 features_names(mofa_trained)[["Transcriptomics"]] = gsub("_TRANSCRIPTOMICS", "", names)
 
 enrichment_trnscrpt = run_mofa_enrichment(mofa_trained,
-  view = "Transcriptomics",
-  feature_sets = trnscrpt_GN_gene_sets,
-  factors = 1:10,
-  csv_path = file.path(mofa_out, "enrichment_transcriptomics.csv")
+                                          view = "Transcriptomics",
+                                          feature_sets = trnscrpt_GN_gene_sets,
+                                          factors = 1:10,
+                                          csv_path = file.path(mofa_out, "enrichment_transcriptomics.csv")
 )
 ```
 
 ```{r}
 plot_enrichment_detailed(enrichment_trnscrpt$down,
-  factor = 1,
-  max.genes = 8,
-  max.pathways = 5
+                         factor = 1,
+                         max.genes = 8,
+                         max.pathways = 5
 )
 ```
 
@@ -303,22 +381,83 @@ names = toupper(features_names(mofa_trained)[["Proteomics"]])
 features_names(mofa_trained)[["Proteomics"]] = gsub("_PROTEOMICS", "", names)
 
 enrichment_prot = run_mofa_enrichment(mofa_trained,
-  view = "Proteomics",
-  feature_sets = prot_GN_gene_sets,
-  factors = 1:10,
-  csv_path = file.path(mofa_out, "enrichment_proteomics.csv")
+                                      view = "Proteomics",
+                                      feature_sets = prot_GN_gene_sets,
+                                      factors = 1:10,
+                                      csv_path = file.path(mofa_out, "enrichment_proteomics.csv")
 )
 ```
 
 ## Enrichment: Phosphoproteomics
 
-```{r}
+```{r, eval = F}
 features_names(mofa_trained)[["Phosphoproteomics"]] = toupper(features_names(mofa_trained)[["Phosphoproteomics"]])
 
 enrichment_phospho = run_mofa_enrichment(mofa_trained,
-  view = "Phosphoproteomics",
-  feature_sets = phospho_GN_NORM_kinase_sets,
-  factors = 1:10,
-  csv_path = file.path(mofa_out, "enrichment_phosphoproteomics.csv")
+                                         view = "Phosphoproteomics",
+                                         feature_sets = phospho_GN_NORM_kinase_sets,
+                                         factors = 1:10,
+                                         csv_path = file.path(mofa_out, "enrichment_phosphoproteomics.csv")
 )
 ```
+
+## Enrichment: Redox Proteomics
+
+Feature names are rat gene symbols (touppered to match gene sets).
+
+```{r}
+features_names(mofa_trained)[["Redox"]] = toupper(features_names(mofa_trained)[["Redox"]])
+
+enrichment_redox = run_mofa_enrichment(mofa_trained,
+                                       view = "Redox",
+                                       feature_sets = redox_GN_NORM_gene_sets,
+                                       factors = 1:10,
+                                       csv_path = file.path(mofa_out, "enrichment_redox.csv")
+)
+```
+
+## Enrichment: Metabolomics
+
+Feature names are RefMet standardized names (touppered to match refmet sets).
+
+```{r}
+features_names(mofa_trained)[["Metabolomics"]] = toupper(features_names(mofa_trained)[["Metabolomics"]])
+
+enrichment_metab = run_mofa_enrichment(mofa_trained,
+                                       view = "Metabolomics",
+                                       feature_sets = metab_GN_refmet_sets,
+                                       factors = 1:10,
+                                       csv_path = file.path(mofa_out, "enrichment_metabolomics.csv")
+)
+```
+
+## Cross-ome enrichment: faceted per factor
+
+Show the top enriched pathways/sets from every ome for a single factor in one panel.
+Edit `factor_to_plot` to explore other factors.
+
+```{r, fig.width=9, fig.height=14}
+all_enrichments = list(
+  Transcriptomics = enrichment_trnscrpt,
+  Proteomics = enrichment_prot,
+  # Phosphoproteomics = enrichment_phospho,
+  Redox = enrichment_redox,
+  Metabolomics = enrichment_metab
+)
+```
+
+
+```{r}
+sig_all = load_sig_enrichments(mofa_out)
+```
+
+```{r}
+for (f in 1:10) {
+  p = plot_enrichment_faceted(all_enrichments,
+                              factor = f,
+                              max_pathways = 8,
+                              png_path = file.path(here(), "plots", "MOFA", paste0("factor", f, ".png")))
+  print(p)
+}
+```
+
