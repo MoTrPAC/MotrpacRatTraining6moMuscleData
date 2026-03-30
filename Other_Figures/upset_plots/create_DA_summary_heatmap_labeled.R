@@ -2,6 +2,15 @@ library(MotrpacRatTraining6moMuscleData)
 library(dplyr)
 library(ComplexHeatmap)
 library(here)
+library(grid)
+#ATAC_GN_DA is generated in data-raw/ATAC_GN.R. It is not saved as a data
+#object due to file size limitations. Please refer to that file and save/load it as needed, to generate this figure.
+
+# ATAC_GN_DA = readRDS("~/Downloads/ATAC_GN_DA.rds")
+
+ATAC_GN_DA = lapply(ATAC_GN_DA, function(df) {
+  filter(df, chrom %in% paste0("chr", 1:20))
+})
 
 x <- list("GN-TRNSCRPT" = TRNSCRPT_GN_DA,
           "GN-PROT" = PROT_GN_DA,
@@ -9,6 +18,7 @@ x <- list("GN-TRNSCRPT" = TRNSCRPT_GN_DA,
           "GN-ACETYL" = ACETYL_GN_NORM_DA,
           "GN-REDOX" = REDOX_GN_NORM_DA,
           "GN-METAB" = METAB_GN_DA,
+          "GN-ATAC" = ATAC_GN_DA, #see above
           "VL-TRNSCRPT" = TRNSCRPT_VL_DA,
           "VL-METAB" = METAB_VL_DA) %>%
   lapply(function(x) {
@@ -120,7 +130,7 @@ col_fun <- heatmap_args$col
 
 ht <- do.call(what = Heatmap, args = heatmap_args)
 
-png(file.path(here(),"plots/SKM_DA_summary2.png"),
+png(file.path(here(),"plots/SKM_DA_summary3.png"),
     height = 3.5, width = 5.2, units = "in", res = 500)
 draw(ht,
      heatmap_legend_side = "bottom")

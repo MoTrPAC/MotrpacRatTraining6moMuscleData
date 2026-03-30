@@ -128,7 +128,8 @@ plot_enrichment_bubble = function(camera_enrichment,
                                   custom_title = ""){
   plot_df = head(camera_enrichment, num_to_plot) %>%
     mutate(GeneSet = gsub("GOCC|WP|REACTOME|GOMF|GOBP|KEGG", "", GeneSet)) %>%
-    mutate(GeneSet = substr(GeneSet, 2, 45))
+    mutate(GeneSet = substr(GeneSet, 2, 45)) %>%
+    arrange(PValue)
   p = ggplot(plot_df, aes(x=GeneSet,
                           y=-log10(PValue),
                           size=NGenes,
@@ -137,8 +138,9 @@ plot_enrichment_bubble = function(camera_enrichment,
     scale_size("Term Size", range=c(3, 8)) +
     coord_flip() +
     ylab(bquote("-log"[10]*"(p-value)")) +
-    theme(axis.title.y=element_blank(), panel.grid.major.y=element_line(size=0.25, color="grey")) +
     ggthemes::theme_few() +
+    theme(axis.title.y=element_blank(),
+          axis.text.y=element_text(size=14, color="black")) +
     labs(caption = custom_title)
   return(p)
 }
@@ -146,6 +148,6 @@ plot_enrichment_bubble = function(camera_enrichment,
 
 load_differential_splicing = function(selected_tissue = c("gastroc", "vastus")){
   lrt_df = lapply(selected_tissue, function(tissue){
-    single_tissue_lrt = readRDS(file.path(here(), "Figures", "Splicing", "data", tissue, "LRT_Results.RDS"))
+    single_tissue_lrt = readRDS(file.path(here(), "Other_Figures", "Splicing", "splicing_raw_data", tissue, "LRT_Results.RDS"))
   }) %>% bind_rows()
 }

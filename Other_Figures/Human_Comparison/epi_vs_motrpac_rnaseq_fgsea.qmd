@@ -1,0 +1,509 @@
+---
+title: "Epi vs Motrpac RNAseq (FGSEA)"
+author: "Akshay Bareja, Christopher Jin"
+date: Mar 12, 2026
+toc: true
+number-sections: true
+format:
+  html:
+    df-print: paged
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+execute:
+  cache: true
+editor: source
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+
+library(tidyverse)
+library(readxl)
+library(limma)
+library(edgeR)
+library(fgsea)
+library(DT)
+library(pheatmap)
+library(MotrpacRatTraining6moData)
+library(TMSig)
+library(GEOquery)
+library(plotly)
+library(patchwork)
+library(ggrepel)
+
+devtools::load_all()
+source(file.path(here::here(), "Other_Figures", "human_comparison", "human_comparison_helpers.R"))
+```
+
+## Background
+
+This document contains the results for gene-level differential expression analysis done for the [EpiTrain cohort](https://www.tandfonline.com/doi/10.4161/15592294.2014.982445?url_ver=Z39.88-2003&rfr_id=ori:rid:crossref.org&rfr_dat=cr_pub%20%200pubmed#d1e738) and Motrpac. EpiTrain gene level counts were downloaded from [GEO](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE60590).
+
+For EpiTrain, post-versus-pre exercise intervention gene expression changes were evaluated by fitting mixed-effects models that used Timepoint, Dominant leg, and BMI as fixed effect covariates (with Timepoint being the factor interest), and subject treated as a random effect.
+
+For Motrpac, the comparison used was 8 week versus Sedentary.
+
+In both cases, analyses were split by gender/sex.
+
+Enrichment analysis was performed using `fgsea`.
+
+## Differential Expression Analysis
+
+### EpiTrain
+
+```{r}
+#| label: epitrain-de
+#| echo: false
+#| message: false
+#| warning: false
+
+epitrain <- load_epitrain_de()
+efit_vfit <- epitrain$efit_vfit
+annot <- epitrain$annot
+akshay_gse60590_f_results <- epitrain$female
+akshay_gse60590_m_results <- epitrain$male
+
+akshay_gse60590_f_results %>%
+  dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>%
+  DT::datatable(caption = "EpiTrain DE results (Female)")
+
+akshay_gse60590_m_results %>%
+  dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>%
+  DT::datatable(caption = "EpiTrain DE results (Male)")
+```
+
+### MotrPac
+
+```{r}
+#| label: motrpac-de
+#| echo: false
+#| message: false
+#| warning: false
+
+motrpac <- load_motrpac_de()
+motr_female <- motrpac$female
+motr_male <- motrpac$male
+
+motr_female %>%
+  data.frame() %>%
+  dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>%
+  dplyr::arrange(adj.P.Val) %>%
+  DT::datatable(caption = "MotrPac DE results (Female)")
+
+motr_male %>%
+  data.frame() %>%
+  dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>%
+  dplyr::arrange(adj.P.Val) %>%
+  DT::datatable(caption = "MotrPac DE results (Male)")
+```
+
+## Enrichment Analysis
+
+### EpiTrain
+
+```{r}
+#| label: epitrain-ea
+#| echo: false
+#| message: false
+#| warning: false
+
+# Use the "human_gene_sets" object to be consistent with paper.
+# see "data-raw/gene_sets.R" to see how these were created.
+
+# process gene sets for the epi project
+background_epi <- unique(akshay_gse60590_f_results$Symbol)
+
+epi_gene_sets <- TMSig::filterSets(x = human_gene_sets,
+                                   background = background_epi,
+                                   min_size = 5L,
+                                   max_size = length(background_epi) - 1L)
+# length(epi_gene_sets) #8787
+clusterDF_epi <- clusterSets(x = epi_gene_sets,
+                             type = "jaccard",
+                             cutoff = 0.85,
+                             method = "complete",
+                             h = 0.9)
+overlapProp_epi <- nrow(clusterDF_epi) / length(background_epi)
+
+clusterDF_epi$overlap_prop <- overlapProp_epi[clusterDF_epi$set]
+clusterDF_epi$n_char <- nchar(clusterDF_epi$set)
+
+o_epi <- with(clusterDF_epi,
+              order(cluster, set_size, overlap_prop, n_char, set,
+                    decreasing = c(FALSE, TRUE, TRUE, FALSE, TRUE),
+                    method = "radix"))
+clusterDF_epi <- clusterDF_epi[o_epi, ]
+
+# Subset filtered gene sets
+human_gene_sets_epi_filt <- epi_gene_sets[with(clusterDF_epi, set[!duplicated(cluster)])]
+# length(human_gene_sets_epi_filt) - 8496
+
+# Build z-score matrix from moderated t-statistics (same mapping used for cameraPR)
+modz_epi <- with(efit_vfit, limma::zscoreT(x = t, df = df.total)) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("GeneID") %>%
+  dplyr::mutate(GeneID = as.integer(GeneID)) %>%
+  dplyr::left_join(annot[, 1:2], dplyr::join_by(GeneID)) %>%
+  dplyr::select(-GeneID) %>%
+  tibble::column_to_rownames("Symbol") %>%
+  dplyr::mutate(across(everything(), as.numeric)) %>%
+  as.matrix()
+
+# Run FGSEA per sex contrast
+set.seed(9001)
+epi_fgsea_f <- fgsea(
+  pathways = human_gene_sets_epi_filt,
+  stats = na.omit(modz_epi[, "women_comp"]),
+  eps = 0,
+  nproc = 4,
+  nPermSimple = 1e4
+)
+
+epi_fgsea_m <- fgsea(
+  pathways = human_gene_sets_epi_filt,
+  stats = na.omit(modz_epi[, "men_comp"]),
+  eps = 0,
+  nproc = 4,
+  nPermSimple = 1e4
+)
+
+# present results
+epi_fgsea_f %>%
+  dplyr::filter(str_detect(pathway, "^GO")) %>%
+  dplyr::arrange(pval) %>%
+  dplyr::select(-leadingEdge) %>%
+  dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>%
+  DT::datatable(caption = "EpiTrain Female (FGSEA results)")
+
+epi_fgsea_m %>%
+  dplyr::filter(str_detect(pathway, "^GO")) %>%
+  dplyr::arrange(pval) %>%
+  dplyr::select(-leadingEdge) %>%
+  dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>%
+  DT::datatable(caption = "EpiTrain Male (FGSEA results)")
+```
+
+### MotrPac
+
+```{r}
+#| label: motrpac-ea
+#| echo: false
+#| message: false
+#| warning: false
+
+# see: vignettes/TRNSCRPT GST for more information on how
+# gene set testing was done.
+res_motr_f <- TRNSCRPT_GN_FGSEA$trained_vs_SED %>%
+  dplyr::filter(Contrast == "F_8W - F_SED")
+
+# male
+res_motr_m <- TRNSCRPT_GN_FGSEA$trained_vs_SED %>%
+  dplyr::filter(Contrast == "M_8W - M_SED")
+
+# present results
+res_motr_f %>%
+  dplyr::filter(str_detect(GeneSet, "^GO")) %>%
+  dplyr::arrange(PValue) %>%
+  dplyr::select(-LeadingEdge) %>%
+  dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>%
+  DT::datatable(caption = "MotrPac Female (FGSEA results)")
+
+res_motr_m %>%
+  dplyr::filter(str_detect(GeneSet, "^GO")) %>%
+  dplyr::arrange(PValue) %>%
+  dplyr::select(-LeadingEdge) %>%
+  dplyr::mutate(across(where(is.numeric), ~round(.x, 3))) %>%
+  DT::datatable(caption = "MotrPac Male (FGSEA results)")
+```
+
+## EpiTrain versus MotrPac
+
+### Differential Expression Analysis
+
+Comparing logFC (top 1000 MoTrPAC features by |logFC|).
+
+```{r}
+#| label: epi-vs-motr-de
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-cap: "EpiTrain versus MotrPac (DE results)"
+#| fig-subcap:
+#|   - "Female Comparison"
+#|   - "Male Comparison"
+#|   - "Epi Female vs Motr Male"
+#|   - "Epi Male vs Motr Female"
+#| layout-ncol: 1
+#| column: page
+#| fig-width: 10
+#| fig-height: 7
+
+# limit MoTrPAC to top 1000 features by adj.P.Val
+motr_female_top <- motr_female %>%
+  dplyr::slice_min(adj.P.Val, n=1000)
+
+motr_male_top <- motr_male %>%
+  dplyr::slice_min(adj.P.Val, n=1000)
+
+# female
+epi_vs_motr_de_f <- akshay_gse60590_f_results %>%
+  dplyr::inner_join(
+    motr_female_top,
+    dplyr::join_by(Symbol),
+    suffix = c("_epi", "_motr")
+  )
+
+cor_f <- cor.test(epi_vs_motr_de_f$logFC_motr, epi_vs_motr_de_f$logFC_epi,
+                  method = "pearson")
+
+epi_vs_motr_de_f_plot <- epi_vs_motr_de_f %>%
+  ggplot(aes(logFC_motr, logFC_epi, label = Symbol)) +
+  geom_point() +
+  geom_abline(linetype = "dashed") +
+  ggrepel::geom_text_repel(
+    data = ~dplyr::slice_min(.x, adj.P.Val_motr, n=10),
+    size = 4, color = "red", segment.color = "red",
+    min.segment.length = 0, max.overlaps = Inf,
+    point.padding = 1.2, box.padding = 0.8,
+    force = 5, force_pull = 0.5, seed = 42
+  ) +
+  theme_bw() +
+  labs(title = "Epi vs Motrpac - Female",
+       subtitle = sprintf("Pearson r = %.3f, p = %.2e", cor_f$estimate, cor_f$p.value),
+       x = "MoTrPAC logFC", y = "EpiTrain logFC")
+# male
+epi_vs_motr_de_m <- akshay_gse60590_m_results %>%
+  dplyr::inner_join(
+    motr_male_top,
+    dplyr::join_by(Symbol),
+    suffix = c("_epi", "_motr")
+  )
+
+cor_m <- cor.test(epi_vs_motr_de_m$logFC_motr, epi_vs_motr_de_m$logFC_epi,
+                  method = "pearson")
+
+epi_vs_motr_de_m_plot <- epi_vs_motr_de_m %>%
+  ggplot(aes(logFC_motr, logFC_epi, label = Symbol)) +
+  geom_point() +
+  geom_abline(linetype = "dashed") +
+  ggrepel::geom_text_repel(
+    data = ~dplyr::slice_min(.x, adj.P.Val_motr, n=10),
+    size = 4, color = "red", segment.color = "red",
+    min.segment.length = 0, max.overlaps = Inf,
+    point.padding = 1.2, box.padding = 0.8,
+    force = 5, force_pull = 0.5, seed = 42
+  ) +
+  theme_bw() +
+  labs(title = "Epi vs Motrpac - Male",
+       subtitle = sprintf("Pearson r = %.3f, p = %.2e", cor_m$estimate, cor_m$p.value),
+       x = "MoTrPAC logFC", y = "EpiTrain logFC")
+# Epi Female vs Motrpac Male
+epi_vs_motr_de_combo <- epi_vs_motr_de_f %>%
+  dplyr::inner_join(
+    epi_vs_motr_de_m,
+    dplyr::join_by(Symbol),
+    suffix = c("_f", "_m")
+  )
+
+cor_fvm <- cor.test(epi_vs_motr_de_combo$logFC_motr_m, epi_vs_motr_de_combo$logFC_epi_f,
+                    method = "pearson")
+
+epi_vs_motr_combo_fvm_plot <- epi_vs_motr_de_combo %>%
+  ggplot(aes(logFC_motr_m, logFC_epi_f, label = Symbol)) +
+  geom_point() +
+  geom_abline(linetype = "dashed") +
+  ggrepel::geom_text_repel(
+    data = ~dplyr::slice_min(.x, adj.P.Val_motr_m, n=10),
+    size = 4, color = "red", segment.color = "red",
+    min.segment.length = 0, max.overlaps = Inf,
+    point.padding = 1.2, box.padding = 0.8,
+    force = 5, force_pull = 0.5, seed = 42
+  ) +
+  theme_bw() +
+  labs(title = "Epi Female vs Motrpac Male",
+       subtitle = sprintf("Pearson r = %.3f, p = %.2e", cor_fvm$estimate, cor_fvm$p.value),
+       x = "MoTrPAC Male logFC", y = "EpiTrain Female logFC")
+# Epi Male vs Motrpac Female
+cor_mvf <- cor.test(epi_vs_motr_de_combo$logFC_motr_f, epi_vs_motr_de_combo$logFC_epi_m,
+                    method = "pearson")
+
+epi_vs_motr_combo_mvf_plot <- epi_vs_motr_de_combo %>%
+  ggplot(aes(logFC_motr_f, logFC_epi_m, label = Symbol)) +
+  geom_point() +
+  geom_abline(linetype = "dashed") +
+  ggrepel::geom_text_repel(
+    data = ~dplyr::slice_min(.x, adj.P.Val_motr_f, n=10),
+    size = 4, color = "red", segment.color = "red",
+    min.segment.length = 0, max.overlaps = Inf,
+    point.padding = 1.2, box.padding = 0.8,
+    force = 5, force_pull = 0.5, seed = 42
+  ) +
+  theme_bw() +
+  labs(title = "Epi Male vs Motrpac Female",
+       subtitle = sprintf("Pearson r = %.3f, p = %.2e", cor_mvf$estimate, cor_mvf$p.value),
+       x = "MoTrPAC Female logFC", y = "EpiTrain Male logFC")
+# Combined 1x4 plot: EpiTrain Female (vs Motr F, vs Motr M) then EpiTrain Male (vs Motr F, vs Motr M)
+de_combined_plot <- (epi_vs_motr_de_f_plot + epi_vs_motr_combo_fvm_plot +
+  epi_vs_motr_combo_mvf_plot + epi_vs_motr_de_m_plot) +
+  patchwork::plot_layout(nrow=1) +
+  patchwork::plot_annotation(tag_levels="A")
+
+de_combined_plot
+
+ggsave(filename = "figures/feature_level_epitrain_plot_for_manuscript.png",
+       plot = de_combined_plot,
+       width = 18,
+       height = 6)
+```
+
+
+
+## Figures for manuscript (old)
+
+```{r}
+#| label: manuscript-figures (old)
+#| echo: false
+#| message: false
+#| warning: false
+
+# Spearman correlation coefficients
+cor(epi_v_motr_fgsea$NES_f_epi, epi_v_motr_fgsea$NES_f_motr, method = "spearman") # 0.370
+cor(epi_v_motr_fgsea$NES_f_epi, epi_v_motr_fgsea$NES_m_motr, method = "spearman") # 0.404
+cor(epi_v_motr_fgsea$NES_m_epi, epi_v_motr_fgsea$NES_f_motr, method = "spearman") # 0.366
+cor(epi_v_motr_fgsea$NES_m_epi, epi_v_motr_fgsea$NES_m_motr, method = "spearman") # -0.173
+
+# p-values
+cor.test(epi_v_motr_fgsea$NES_f_epi, epi_v_motr_fgsea$NES_f_motr, method = "spearman") #p-value < 2.2e-16
+cor.test(epi_v_motr_fgsea$NES_f_epi, epi_v_motr_fgsea$NES_m_motr, method = "spearman") #p-value 0.04456
+cor.test(epi_v_motr_fgsea$NES_m_epi, epi_v_motr_fgsea$NES_f_motr, method = "spearman") #p-value < 2.2e-16
+cor.test(epi_v_motr_fgsea$NES_m_epi, epi_v_motr_fgsea$NES_m_motr, method = "spearman") #p-value < 2.2e-16
+
+# What are the pathways with highest average NES across all comparisons?
+top_pathways <- epi_v_motr_fgsea %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(nes_avg = mean(c_across(starts_with("NES")), na.rm = TRUE)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(desc(nes_avg)) %>%
+  dplyr::slice_max(nes_avg, n = 50) %>%
+  dplyr::pull(GeneSet)
+
+# Epi F vs Motr F
+f_v_f <- make_zscore_scatter(epi_v_motr_fgsea,
+  x_col = "NES_f_epi", y_col = "NES_f_motr",
+  top_pathways = top_pathways,
+  title = "EpiTrain Female vs MoTrPAC Female",
+  subtitle = "Spearman's rho: 0.370\np-value < 2.2e-16",
+  x_lab = "EpiTrain Female (NES)",
+  y_lab = "MoTrPAC Female (NES)")
+
+# Epi F vs Motr M
+f_v_m <- make_zscore_scatter(epi_v_motr_fgsea,
+  x_col = "NES_f_epi", y_col = "NES_m_motr",
+  top_pathways = top_pathways,
+  title = "EpiTrain Female vs MoTrPAC Male",
+  subtitle = "Spearman's rho: 0.404\np-value = 0.045",
+  x_lab = "EpiTrain Female (NES)",
+  y_lab = "MoTrPAC Male (NES)")
+
+# Epi M vs Motr F
+m_v_f <- make_zscore_scatter(epi_v_motr_fgsea,
+  x_col = "NES_m_epi", y_col = "NES_f_motr",
+  top_pathways = top_pathways,
+  title = "EpiTrain Male vs MoTrPAC Female",
+  subtitle = "Spearman's rho: 0.366\np-value < 2.2e-16",
+  x_lab = "EpiTrain Male (NES)",
+  y_lab = "MoTrPAC Female (NES)")
+
+# Epi M vs Motr M
+m_v_m <- make_zscore_scatter(epi_v_motr_fgsea,
+  x_col = "NES_m_epi", y_col = "NES_m_motr",
+  top_pathways = top_pathways,
+  title = "EpiTrain Male vs MoTrPAC Male",
+  subtitle = "Spearman's rho: -0.173\np-value < 2.2e-16",
+  x_lab = "EpiTrain Male (NES)",
+  y_lab = "MoTrPAC Male (NES)")
+
+manuscript_plot <- (f_v_f + f_v_m) /
+  (m_v_f + m_v_m) +
+  patchwork::plot_annotation(tag_levels = "A")
+
+manuscript_plot
+
+ggsave(filename = "figures/fgsea_plot_for_manuscript.png",
+       plot = manuscript_plot,
+       width = 15,
+       height = 15)
+```
+
+Figure caption
+
+Figure 6. Comparison of transcriptomic responses to exercise in humans and rats at the pathway level. Comparison of FGSEA results for (A) EpiTrain Female versus MoTrPAC Female; (B) EpiTrain Female versus MoTrPAC Male; (C) EpiTrain Male versus MoTrPAC Female; (D) EpiTrain Male versus MoTrPAC Male. Points highlighted in red indicate gene sets with the highest average NES across all comparisons (see text for details).
+
+
+## Reviewer comments
+
+What is driving the negative correlation between male rat and male human?
+
+```{r}
+#| label: reviewer-comments
+#| echo: false
+#| message: false
+#| warning: false
+
+# base data frame on original NES scale
+nes_male_df <- tibble::tibble(
+  male_rat = epi_v_motr_fgsea$NES_m_motr,
+  male_human = epi_v_motr_fgsea$NES_m_epi,
+  GeneSet = epi_v_motr_fgsea$GeneSet
+) %>%
+  dplyr::mutate(product = male_rat * male_human)
+
+# top 10 most disagreeing: opposite directions, ranked by magnitude of product
+disagree.points <- nes_male_df %>%
+  dplyr::filter(product < 0) %>%
+  dplyr::slice_min(product, n=10, with_ties=FALSE) %>%
+  dplyr::pull(GeneSet)
+
+nes_male_df <- nes_male_df %>%
+  dplyr::mutate(is_disagree = GeneSet %in% disagree.points)
+
+# scatter with top 10 disagreers highlighted and labeled
+rat_v_human_male_scatter <- nes_male_df %>%
+  ggplot(aes(male_human, male_rat, label = GeneSet)) +
+  geom_point(aes(col = is_disagree)) +
+  scale_color_manual(values = c("FALSE" = "black", "TRUE" = "red"), guide = "none") +
+  ggrepel::geom_label_repel(
+    data = . %>% dplyr::filter(is_disagree),
+    size = 2.5, max.overlaps = 10
+  ) +
+  theme_bw() +
+  labs(x = "Human Male (NES)", y = "Rat Male (NES)")
+
+# side panel: NES for the top 10 disagreers in each dataset
+disagree_panel <- nes_male_df %>%
+  dplyr::filter(is_disagree) %>%
+  tidyr::pivot_longer(cols = c(male_rat, male_human),
+                      names_to = "Dataset", values_to = "NES") %>%
+  dplyr::mutate(
+    Dataset = dplyr::recode(Dataset, male_rat = "MoTrPAC", male_human = "EpiTrain"),
+    GeneSet = stringr::str_trunc(GeneSet, 40)
+  ) %>%
+  ggplot(aes(NES, reorder(GeneSet, NES), col = Dataset)) +
+  geom_point(size = 3) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw() +
+  labs(y = NULL, x = "NES", title = "Top 10 most disagreeing pathways")
+
+disagreement_plot <- rat_v_human_male_scatter + disagree_panel +
+  patchwork::plot_layout(widths = c(2, 1.5))
+
+disagreement_plot
+
+ggsave(filename = "figures/male_disagreement_pathways.png",
+       plot = disagreement_plot,
+       width = 14,
+       height = 7)
+```
+
