@@ -250,12 +250,12 @@ scatter_panel <- function(df, sex_label, cor) {
     geom_abline(linetype="dashed") +
     ggrepel::geom_label_repel(
       data=~dplyr::slice_min(.x, adj.P.Val_motr, n=10),
-      size=3.5, color="red", segment.color="red",
+      size=4.5, color="red", segment.color="red",
       fill=alpha("white", 0.85), label.size=0.2,
       min.segment.length=0, max.overlaps=Inf,
       point.padding=2, box.padding=0.5, force=8, force_pull=0.3, seed=42
     ) +
-    theme_bw() +
+    theme_bw(base_size=14) +
     labs(title=sprintf("%s: EpiTrain vs MoTrPAC", sex_label),
          subtitle=sprintf("Pearson r = %.3f, p = %.2e", cor$estimate, cor$p.value),
          x="MoTrPAC logFC", y="EpiTrain logFC")
@@ -290,8 +290,11 @@ feature_panel <- function(df, sex_label, n=6) {
     geom_vline(xintercept=0, linetype="dashed", color="grey50") +
     facet_wrap(~type, scales="free_y", ncol=1) +
     scale_color_manual(values=c(MoTrPAC="#E41A1C", EpiTrain="#377EB8")) +
-    theme_bw() +
-    theme(strip.text=element_text(face="bold")) +
+    theme_bw(base_size=14) +
+    theme(
+      strip.text=element_text(face="bold", size=14),
+      axis.text.y=element_text(face="bold", size=12)
+    ) +
     labs(title=sprintf("%s concordant & discordant genes", sex_label),
          x="logFC", y=NULL, col=NULL, shape=NULL)
 }
@@ -310,15 +313,13 @@ panel_b <- feature_panel(epi_vs_motr_de_f, "Female")
 panel_c <- scatter_panel(epi_vs_motr_de_m, "Male", cor_m)
 panel_d <- feature_panel(epi_vs_motr_de_m, "Male")
 
-# Combine: (A scatter | B features) / (C scatter | D features)
 de_combined_plot <- (panel_a + panel_b) / (panel_c + panel_d) +
-  patchwork::plot_layout(widths=c(2, 1)) +
-  patchwork::plot_annotation(tag_levels="A")
+  patchwork::plot_layout(widths=c(3, 1))
 
 de_combined_plot
 
 ggsave(filename="figures/feature_level_epitrain_plot_for_manuscript.png",
-       plot=de_combined_plot, width=14, height=10)
+       plot=de_combined_plot, width=18, height=8)
 ```
 
 

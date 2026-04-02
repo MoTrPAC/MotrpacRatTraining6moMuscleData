@@ -59,24 +59,24 @@ build_binary_matrix_for_view = function(feature_sets, mofa_features, view) {
 #'
 #' @return Named list with "up" and "down" enrichment results (invisible)
 run_mofa_enrichment = function(mofa_trained, view, feature_sets,
-                               factors = 1:10, max_pathways = 15,
-                               csv_path = NULL, plot = FALSE) {
+                               factors=1:10, max_pathways=15,
+                               csv_path=NULL, plot=FALSE) {
   feature_sets = lapply(feature_sets, toupper)
   mofa_features = MOFA2::features_names(mofa_trained)[[view]]
   binary_matrix = build_binary_matrix_for_view(feature_sets, mofa_features, view)
 
   enrichment_down = run_enrichment(mofa_trained,
-    view = view, factors = factors,
-    feature.sets = binary_matrix,
-    sign = "negative",
-    statistical.test = "parametric"
+    view=view, factors=factors,
+    feature.sets=binary_matrix,
+    sign="negative",
+    statistical.test="parametric"
   )
 
   enrichment_up = run_enrichment(mofa_trained,
-    view = view, factors = factors,
-    feature.sets = binary_matrix,
-    sign = "positive",
-    statistical.test = "parametric"
+    view=view, factors=factors,
+    feature.sets=binary_matrix,
+    sign="positive",
+    statistical.test="parametric"
   )
 
   # Plot each factor, catching errors when no pathways are significant
@@ -84,15 +84,15 @@ run_mofa_enrichment = function(mofa_trained, view, feature_sets,
     for (f in factors) {
       tryCatch(
         print(plot_enrichment(enrichment_up,
-          factor = f, max.pathways = max_pathways, text_size = 0.8
+          factor=f, max.pathways=max_pathways, text_size=0.8
         )),
-        error = function(e) cat("Factor", f, "(up): no significant pathways\n")
+        error=function(e) cat("Factor", f, "(up): no significant pathways\n")
       )
       tryCatch(
         print(plot_enrichment(enrichment_down,
-          factor = f, max.pathways = max_pathways, text_size = 0.8
+          factor=f, max.pathways=max_pathways, text_size=0.8
         )),
-        error = function(e) cat("Factor", f, "(down): no significant pathways\n")
+        error=function(e) cat("Factor", f, "(down): no significant pathways\n")
       )
     }
   }
@@ -149,32 +149,31 @@ plot_enrichment_faceted = function(enrichment_list, factor, max_pathways = 8,
   df$neg_log_padj = -log10(pmax(df$padj, 1e-10))
   df$neg_log_padj = ifelse(df$sign == "negative", -df$neg_log_padj, df$neg_log_padj)
   df$significant = df$padj < padj_threshold
-  df$view = factor(df$view, levels = names(enrichment_list))
+  df$view = factor(df$view, levels=names(enrichment_list))
   # within each view, order pathways by score for readability
   df$pathway_label = shorten_name(df$pathway)
   df$pathway_label = factor(df$pathway_label,
-    levels = rev(unique(df$pathway_label[order(df$view, df$neg_log_padj)])))
+    levels=rev(unique(df$pathway_label[order(df$view, df$neg_log_padj)])))
 
   threshold_line = -log10(padj_threshold)
-  p = ggplot2::ggplot(df, ggplot2::aes(x = neg_log_padj, y = pathway_label,
-                                        fill = significant)) +
+  p = ggplot2::ggplot(df, ggplot2::aes(x=neg_log_padj, y=pathway_label, fill=significant)) +
     ggplot2::geom_col() +
-    ggplot2::geom_vline(xintercept = c(-threshold_line, threshold_line),
-                        linetype = "dashed", color = "gray50") +
-    ggplot2::facet_wrap(~ view, scales = "free_y", nrow = 1) +
+    ggplot2::geom_vline(xintercept=c(-threshold_line, threshold_line),
+                        linetype="dashed", color="gray50") +
+    ggplot2::facet_wrap(~view, scales="free_y", nrow=1) +
     ggplot2::scale_fill_manual(
-      values = c("FALSE" = "gray75", "TRUE" = "#2166ac"),
-      name = paste0("padj < ", padj_threshold)
+      values=c("FALSE"="gray75", "TRUE"="#2166ac"),
+      name=paste0("padj < ", padj_threshold)
     ) +
     ggplot2::labs(
-      title = paste0("Factor ", factor, " enrichment across all omes"),
-      x = expression(-log[10](padj) ~ "[pos = up-weighted, neg = down-weighted]"),
-      y = NULL
+      title=paste0("Factor ", factor, " enrichment across all omes"),
+      x=expression(-log[10](padj) ~ "[pos = up-weighted, neg = down-weighted]"),
+      y=NULL
     ) +
     ggplot2::theme_bw() +
     ggplot2::theme(
-      strip.text = ggplot2::element_text(face = "bold"),
-      axis.text.y = ggplot2::element_text(size = 7)
+      strip.text=ggplot2::element_text(face="bold"),
+      axis.text.y=ggplot2::element_text(size=7)
     )
 
   if (!is.na(png_path)) {
@@ -363,4 +362,314 @@ enrichment_to_csv = function(enrichment_up, enrichment_down, view,
   sig = combined[combined$padj < 0.05, ]
   write.csv(sig, sig_path, row.names = FALSE)
   cat("Significant results (padj < 0.05):", nrow(sig), "rows ->", sig_path, "\n")
+}
+
+#' Bubble heatmap of MOFA enrichment results for one view
+#'
+#' Rows = top significant gene sets, columns = factors.  Circle size encodes
+#' -log10(min(padj_up, padj_down)) (capped at 5 mm); circle color encodes the
+#' signed -log10(padj) (positive = up-weighted, negative = down-weighted).
+#' A grey background rect marks significant cells (padj < padj_threshold).
+#' Left annotation shows the view name.  Mirrors the style of
+#' \code{make_camera_heatmap} from cmeans_helpers.R.
+#'
+#' @param enrichment Named list with \code{up} and \code{down} elements, each
+#'   an object returned by \code{MOFA2::run_enrichment}.
+#' @param view_name Character label for the view (used in left annotation).
+#' @param ome_cols Named character vector mapping view names to colours.
+#' @param col_fun A \code{circlize::colorRamp2} function for the signed
+#'   -log10(padj) colour scale (should be shared across all views).
+#' @param n_top Max number of gene sets to show (default 8).
+#' @param padj_threshold Significance threshold for row selection and grey rect
+#'   background (default 0.05).
+#' @param cell_size \code{grid::unit} controlling cell width and height.
+#'
+#' @return A \code{ComplexHeatmap::Heatmap} or NULL when no significant sets.
+make_mofa_enrichment_heatmap = function(enrichment, view_name, ome_cols, col_fun,
+                                        n_top=8, padj_threshold=0.05,
+                                        cell_size=grid::unit(6, "mm")) {
+  factor_cols = intersect(colnames(enrichment$up$pval.adj),
+                          colnames(enrichment$down$pval.adj))
+  padj_up = enrichment$up$pval.adj[, factor_cols, drop=FALSE]
+  padj_down = enrichment$down$pval.adj[, factor_cols, drop=FALSE]
+
+  # Select top n_top gene sets with any significant result, ordered by min padj
+  min_padj_by_set = pmin(apply(padj_up, 1, min, na.rm=TRUE),
+                         apply(padj_down, 1, min, na.rm=TRUE))
+  sig_sets = names(sort(min_padj_by_set[min_padj_by_set < padj_threshold]))
+  if (length(sig_sets) == 0) return(NULL)
+  top_sets = sig_sets[seq_len(min(n_top, length(sig_sets)))]
+
+  padj_up_top = padj_up[top_sets, , drop=FALSE]
+  padj_down_top = padj_down[top_sets, , drop=FALSE]
+
+  # Signed -log10(padj): positive = up-weighted, negative = down-weighted; capped at ±20
+  signed_logp = ifelse(padj_up_top <= padj_down_top,
+                       -log10(padj_up_top),
+                       log10(padj_down_top))
+  signed_logp = pmax(pmin(signed_logp, 20), -20)
+  min_padj_top = pmin(padj_up_top, padj_down_top)
+
+  # Shorten long gene set names
+  rn = ifelse(nchar(rownames(signed_logp)) > 40,
+              paste0(substr(rownames(signed_logp), 1, 40), "..."),
+              rownames(signed_logp))
+  rownames(signed_logp) = rn
+  rownames(min_padj_top) = rn
+  colnames(signed_logp) = sub("Factor", "F", colnames(signed_logp))
+  colnames(min_padj_top) = colnames(signed_logp)
+
+  ComplexHeatmap::Heatmap(
+    matrix=matrix(NA_real_, nrow=nrow(signed_logp), ncol=ncol(signed_logp),
+                  dimnames=dimnames(signed_logp)),
+    width=cell_size * ncol(signed_logp),
+    height=cell_size * nrow(signed_logp),
+    cluster_rows=FALSE,
+    cluster_columns=FALSE,
+    rect_gp=grid::gpar(fill=NA, col="grey85"),
+    show_column_names=TRUE,
+    column_names_rot=0,
+    column_names_gp=grid::gpar(just="center", fontsize=9),
+    column_names_side="top",
+    show_row_names=TRUE,
+    row_names_side="right",
+    row_names_gp=grid::gpar(fontsize=8),
+    show_heatmap_legend=FALSE,
+    na_col="grey95",
+    left_annotation=ComplexHeatmap::rowAnnotation(
+      ome=ComplexHeatmap::anno_simple(
+        rep(view_name, nrow(signed_logp)),
+        col=ome_cols,
+        border=TRUE
+      ),
+      show_annotation_name=FALSE,
+      width=grid::unit(4, "mm")
+    ),
+    cell_fun=function(j, i, x, y, width, height, fill) {
+      pv = min_padj_top[i, j]
+      fc = signed_logp[i, j]
+      if (!is.na(pv) && pv < padj_threshold)
+        grid::grid.rect(x, y, width, height, gp=grid::gpar(fill="grey90", col=NA))
+      if (!is.na(pv) && pv < 1) {
+        pv_size = min(-log10(pv), 5)
+        if (!is.na(fc))
+          grid::grid.circle(x=x, y=y, r=grid::unit(pv_size, "mm") / 2,
+                            gp=grid::gpar(fill=col_fun(fc), col=NA))
+      }
+    }
+  )
+}
+
+#' Combined heatmap of top-weighted MOFA features across multiple views
+#'
+#' For each view in \code{view_da}, extracts the top \code{n} features by
+#' absolute weight, maps them to gene symbols, and builds z-score / FDR matrices
+#' using the same logic as \code{feature_heatmap}.  All views are row-bound into
+#' a single \code{ComplexHeatmap::Heatmap} with a left annotation bar showing
+#' the view identity and row splitting by view.
+#'
+#' @param mofa_trained Trained MOFA2 object.
+#' @param factor_num Integer factor index (e.g. 1 for Factor1).
+#' @param view_da Named list of DA result data frames (one per view), each with
+#'   columns \code{gene_symbol}, \code{contrast}, \code{z}, \code{adj.P.Val}.
+#' @param view_gene_map Named list of optional mapping functions
+#'   \code{function(features) -> gene_symbols}, one per view.  NULL entries use
+#'   case-insensitive direct matching against \code{gene_symbol}.
+#' @param n Number of top features per view (default 15).
+#' @param scale Scalar multiplier for font sizes and cell dimensions (default 1).
+#' @param padj_cutoff Significance threshold for asterisk annotation (default 0.05).
+#'
+#' @return A \code{ComplexHeatmap::Heatmap} object, or NULL (invisibly) when no
+#'   view yields matching features.
+mofa_feature_heatmap = function(mofa_trained, factor_num, view_da,
+                                view_gene_map=NULL, n=15, scale=1,
+                                padj_cutoff=0.05,
+                                view_feature_col=NULL) {
+  factor_label = paste0("Factor", factor_num)
+  expected_groups = c("1W", "2W", "4W", "8W")
+
+  # View colours matching the palette in plot_feature_weights
+  default_view_cols = c(
+    Transcriptomics="#4575b4",
+    Proteomics="#d73027",
+    Phosphoproteomics="#f46d43",
+    Redox="#74add1",
+    Metabolomics="#1a9850"
+  )
+
+  # Build z and fdr matrices for one view's gene set.
+  # feature_col: the column in da_results holding feature IDs (default "gene_symbol").
+  # It is normalised to gene_symbol so the rest of the function is unchanged.
+  build_matrices = function(interested_genes, da_results, feature_col="gene_symbol") {
+    if (feature_col != "gene_symbol")
+      da_results = da_results %>% dplyr::mutate(gene_symbol=.data[[feature_col]])
+    da = da_results %>%
+      dplyr::filter(gene_symbol %in% interested_genes) %>%
+      dplyr::mutate(
+        sex = sub("^(.)_.*", "\\1", contrast),
+        group = sub("^._(\\S+).*", "\\1", contrast)
+      ) %>%
+      dplyr::group_by(contrast, gene_symbol) %>%
+      dplyr::slice_min(adj.P.Val) %>%
+      dplyr::ungroup()
+
+    da_tidy = da %>%
+      dplyr::group_by(sex) %>%
+      tidyr::complete(gene_symbol=interested_genes,
+                      group=expected_groups,
+                      fill=list(z=NaN)) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(gene_symbol, group, z, adj.P.Val, sex)
+
+    make_mat = function(value_col) {
+      da_tidy %>%
+        dplyr::mutate(group=factor(group, levels=expected_groups)) %>%
+        dplyr::arrange(sex, group) %>%
+        dplyr::distinct(sex, group, gene_symbol, .keep_all=TRUE) %>%
+        dplyr::rename(value=!!value_col) %>%
+        tidyr::pivot_wider(id_cols=c(sex, group),
+                           values_from=value,
+                           names_from=gene_symbol) %>%
+        as.data.frame() %>%
+        `rownames<-`(with(., interaction(sex, group))) %>%
+        dplyr::select(-c(sex, group)) %>%
+        t() %>%
+        as.matrix()
+    }
+    list(z=make_mat("z"), fdr=make_mat("adj.P.Val"))
+  }
+
+  z_mats = list()
+  fdr_mats = list()
+  view_labels = c()
+
+  for (v in names(view_da)) {
+    suffix_pat = paste0("_(", toupper(v), ")$")
+    gene_map = if (!is.null(view_gene_map)) view_gene_map[[v]] else NULL
+
+    features = MOFA2::get_weights(mofa_trained, views=v, as.data.frame=TRUE) %>%
+      dplyr::filter(factor == factor_label) %>%
+      dplyr::arrange(desc(value)) %>%
+      dplyr::slice_head(n=n) %>%
+      dplyr::mutate(feature=sub(suffix_pat, "", feature, ignore.case=TRUE)) %>%
+      dplyr::pull(feature)
+
+    gene_ids = if (!is.null(gene_map)) gene_map(features) else features
+
+    feat_col = if (!is.null(view_feature_col[[v]])) view_feature_col[[v]] else "gene_symbol"
+
+    da_sub = view_da[[v]] %>%
+      dplyr::filter(toupper(.data[[feat_col]]) %in% toupper(gene_ids))
+
+    if (nrow(da_sub) == 0) {
+      message("No matching features for ", v, " Factor ", factor_num, " - skipping")
+      next
+    }
+
+    mats = build_matrices(unique(da_sub[[feat_col]]), view_da[[v]], feat_col)
+    # Reorder rows by weight order: features is already desc(abs(value))-sorted;
+    # match each feature to the actual rowname case used in the matrix.
+    row_order = rownames(mats$z)[match(toupper(gene_ids), toupper(rownames(mats$z)))]
+    row_order = row_order[!is.na(row_order)]
+    mats$z = mats$z[row_order, , drop=FALSE]
+    mats$fdr = mats$fdr[row_order, , drop=FALSE]
+
+    z_mats[[v]] = mats$z
+    fdr_mats[[v]] = mats$fdr
+    view_labels = c(view_labels, rep(v, nrow(mats$z)))
+  }
+
+  if (length(z_mats) == 0) return(invisible(NULL))
+
+  z_combined = do.call(rbind, z_mats)
+  fdr_combined = do.call(rbind, fdr_mats)
+
+  # Top annotation: Sex + Timepoint from column names ("F.1W", "M.1W", ...)
+  ann_df = strsplit(colnames(z_combined), "\\.") %>%
+    do.call(rbind, .) %>%
+    as.data.frame(stringsAsFactors=FALSE) %>%
+    setNames(c("sex", "group")) %>%
+    dplyr::mutate(
+      Sex=ifelse(sex == "F", "Female", "Male"),
+      Timepoint=factor(group, levels=expected_groups)
+    )
+
+  top_ann = ComplexHeatmap::HeatmapAnnotation(
+    df=ann_df %>% dplyr::select(Sex, Timepoint),
+    border=TRUE,
+    gp=grid::gpar(col="black"),
+    gap=grid::unit(0, "pt"),
+    which="column",
+    height=grid::unit(6 * 2, "pt") * scale,
+    col=list(
+      Sex=c(Female=MotrpacBicQC::sex_cols[["Female"]],
+            Male=MotrpacBicQC::sex_cols[["Male"]]),
+      Timepoint=c("1W"="#F7FCB9", "2W"="#ADDD8E", "4W"="#238443", "8W"="#002612")
+    ),
+    annotation_name_gp=grid::gpar(fontsize=7 * scale),
+    annotation_legend_param=list(
+      border="black",
+      labels_gp=grid::gpar(fontsize=6.5 * scale),
+      title_gp=grid::gpar(fontsize=7 * scale, fontface="bold")
+    )
+  )
+
+  # Left annotation: view name per row
+  present_views = unique(view_labels)
+  view_cols = default_view_cols[intersect(names(default_view_cols), present_views)]
+  missing = setdiff(present_views, names(view_cols))
+  if (length(missing) > 0) {
+    extra = scales::hue_pal()(length(missing))
+    names(extra) = missing
+    view_cols = c(view_cols, extra)
+  }
+
+  left_ann = ComplexHeatmap::rowAnnotation(
+    View=ComplexHeatmap::anno_simple(view_labels, col=view_cols, border=TRUE),
+    show_annotation_name=FALSE,
+    width=grid::unit(4, "mm"),
+    annotation_legend_param=list(
+      title="View",
+      border="black",
+      labels_gp=grid::gpar(fontsize=6.5 * scale),
+      title_gp=grid::gpar(fontsize=7 * scale, fontface="bold")
+    )
+  )
+
+  z_range = range(z_combined, na.rm=TRUE)
+  max_abs = max(abs(z_range))
+
+  ComplexHeatmap::Heatmap(
+    matrix=z_combined,
+    col=circlize::colorRamp2(c(-max_abs, 0, max_abs), c("#3366ff", "white", "darkred")),
+    cluster_columns=FALSE,
+    cluster_rows=FALSE,
+    show_column_names=FALSE,
+    top_annotation=top_ann,
+    left_annotation=left_ann,
+    border="black",
+    row_names_gp=grid::gpar(fontsize=7 * scale),
+    height=nrow(z_combined) * grid::unit(5.5, "pt") * scale,
+    width=ncol(z_combined) * grid::unit(5.5, "pt") * scale,
+    column_split=ann_df$Sex,
+    row_split=factor(view_labels, levels=names(z_mats)),
+    heatmap_legend_param=list(
+      title="Z-Score",
+      at=c(-round(max_abs), 0, round(max_abs)),
+      title_gp=grid::gpar(fontsize=7 * scale, fontface="bold"),
+      labels_gp=grid::gpar(fontsize=6 * scale),
+      legend_height=5 * scale * grid::unit(8, "pt"),
+      border="black"
+    ),
+    cell_fun=function(j, i, x, y, width, height, fill) {
+      grid::grid.rect(x=x, y=y, width=width, height=height,
+                      gp=grid::gpar(col="#555555", fill=NA))
+      if (!is.na(fdr_combined[i, j]) && fdr_combined[i, j] < padj_cutoff) {
+        gb = grid::textGrob("*")
+        gb_w = grid::convertWidth(grid::grobWidth(gb), "mm")
+        gb_h = grid::convertHeight(grid::grobHeight(gb), "mm")
+        grid::grid.text("*", x, y - gb_h * 0.5 + gb_w * 0.4)
+      }
+    }
+  )
 }

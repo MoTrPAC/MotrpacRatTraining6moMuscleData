@@ -336,15 +336,9 @@ plot_factor_cor(mofa_trained)
 
 
 ```{r feature_weights, fig.width=12, fig.height=10}
-source(file.path(here(), "Other_Figures", "MOFA", "mofa_helpers.R"))
+# source(file.path(here(), "Other_Figures", "MOFA", "mofa_helpers.R"))
 
 plot_feature_weights(mofa_trained, factors = 2, n_features = 12)
-```
-
-```{r feature_weights_save, eval=FALSE}
-# Export to PNG
-plot_feature_weights(mofa_trained, factors = 1:3, n_features = 10,
-                     png_path = file.path(here(), "plots", "MOFA", "feature_weights_F1-3.png"))
 ```
 
 ## Enrichment: Transcriptomics
@@ -385,7 +379,7 @@ enrichment_prot = run_mofa_enrichment(mofa_trained,
 
 ## Enrichment: Phosphoproteomics
 
-```{r, eval = F}
+```{r, eval = T}
 features_names(mofa_trained)[["Phosphoproteomics"]] = toupper(features_names(mofa_trained)[["Phosphoproteomics"]])
 
 enrichment_phospho = run_mofa_enrichment(mofa_trained,
@@ -453,6 +447,153 @@ for (f in 1:10) {
                               max_pathways = 8,
                               png_path = file.path(here(), "plots", "MOFA", paste0("factor", f, ".png")))
   print(p)
+}
+```
+
+## Combined enrichment bubble heatmap
+
+Bubble heatmap across all views and factors.  Each row is a top significant
+gene set; columns are factors.  Circle size = -log10(padj) (capped at 5 mm),
+circle color = signed -log10(padj) (red = up-weighted, blue = down-weighted),
+grey background = padj < 0.05.
+
+```{r mofa_enrichment_bubble, message=FALSE}
+# Compute global signed -log10(padj) range for a shared colour scale
+compute_signed_logp = function(enrich, n_top=8, padj_threshold=0.05) {
+  factor_cols = intersect(colnames(enrich$up$pval.adj),
+                          colnames(enrich$down$pval.adj))
+  pu = enrich$up$pval.adj[, factor_cols, drop=FALSE]
+  pd = enrich$down$pval.adj[, factor_cols, drop=FALSE]
+  min_p = pmin(apply(pu, 1, min, na.rm=TRUE), apply(pd, 1, min, na.rm=TRUE))
+  sig = names(sort(min_p[min_p < padj_threshold]))[seq_len(min(n_top, sum(min_p < padj_threshold)))]
+  if (length(sig) == 0) return(numeric(0))
+  as.vector(ifelse(pu[sig, , drop=FALSE] <= pd[sig, , drop=FALSE],
+                   -log10(pu[sig, , drop=FALSE]),
+                   log10(pd[sig, , drop=FALSE])))
+}
+
+all_vals = unlist(lapply(all_enrichments, compute_signed_logp))
+max_abs_logp = min(max(abs(all_vals), na.rm=TRUE), 20)
+
+col_fun_enrich = circlize::colorRamp2(
+  c(-max_abs_logp, 0, max_abs_logp),
+  c("#3366ff", "white", "darkred")
+)
+
+ome_cols_mofa = c(
+  Transcriptomics="#4575b4",
+  Proteomics="#d73027",
+  Redox="#74add1",
+  Metabolomics="#1a9850"
+)
+
+color_lg = ComplexHeatmap::Legend(
+  title="-log10(padj)\n(+ up, \u2212 down)",
+  col_fun=col_fun_enrich,
+  at=c(-round(max_abs_logp), 0, round(max_abs_logp)),
+  legend_height=grid::unit(4, "cm")
+)
+ome_lg = ComplexHeatmap::Legend(
+  title="View",
+  at=names(ome_cols_mofa),
+  legend_gp=grid::gpar(fill=ome_cols_mofa)
+)
+sig_lg = ComplexHeatmap::Legend(
+  title="Significance",
+  at="padj < 0.05",
+  legend_gp=grid::gpar(fill="grey90", col=NA)
+)
+
+enrich_heatmaps = list()
+for (v in names(all_enrichments)) {
+  ht = make_mofa_enrichment_heatmap(
+    enrichment=all_enrichments[[v]],
+    view_name=v,
+    ome_cols=ome_cols_mofa,
+    col_fun=col_fun_enrich,
+    n_top=8
+  )
+  if (!is.null(ht)) enrich_heatmaps[[v]] = ht
+}
+
+if (length(enrich_heatmaps) > 0) {
+  combined_enrich = Reduce(`%v%`, enrich_heatmaps)
+  png_path = file.path(here(), "plots", "MOFA", "enrichment_bubble_heatmap.png")
+  png(png_path, width=12, height=10, units="in", res=600)
+  ComplexHeatmap::draw(
+    combined_enrich,
+    heatmap_legend_list=list(color_lg, ome_lg, sig_lg),
+    merge_legend=TRUE,
+    heatmap_legend_side="left"
+  )
+  dev.off()
+  cat("Saved:", png_path, "\n")
+}
+```
+
+## Feature heatmaps
+
+Heatmaps of the top-weighted features per factor for three views whose feature
+names map cleanly to the `gene_symbol` column of the differential-analysis
+objects.  Transcriptomics features are human gene symbols in the MOFA object
+and are reverse-mapped to rat gene symbols via `RAT_TO_HUMAN` before looking
+up DA results.  Phosphoproteomics and Metabolomics are omitted here because
+their feature identifiers (UniProt-site and RefMet names, respectively) do not
+align directly with the `gene_symbol` column expected by `feature_heatmap`.
+
+```{r feature_heatmaps, fig.width=10, fig.height=6, results='hide', message=FALSE}
+library(ComplexHeatmap)
+
+# Reverse-map MOFA transcriptomics human symbols → rat gene symbols
+human_to_rat = function(human_features) {
+  RAT_TO_HUMAN %>%
+    dplyr::filter(toupper(human_symbol) %in% toupper(human_features)) %>%
+    dplyr::pull(symbol)
+}
+
+view_da = list(
+  Transcriptomics = TRNSCRPT_GN_DA[["trained_vs_SED"]],
+  Proteomics = PROT_GN_DA[["trained_vs_SED"]],
+  Phosphoproteomics = PHOSPHO_GN_DA[["trained_vs_SED"]],
+  Redox = REDOX_GN_NORM_DA[["trained_vs_SED"]],
+  Metabolomics = METAB_GN_DA[["trained_vs_SED"]]
+)
+
+phospho_mofa_to_da = function(mofa_features) {
+  site_map %>%
+    dplyr::filter(featureID %in% mofa_features) %>%
+    dplyr::pull(feature_id)
+}
+
+view_gene_map = list(
+  Transcriptomics = human_to_rat,
+  Proteomics = NULL,
+  Phosphoproteomics = phospho_mofa_to_da,
+  Redox = NULL,
+  Metabolomics = NULL
+)
+
+for (f in 2:3) {
+  ht = mofa_feature_heatmap(mofa_trained, 
+                            factor_num=f,
+                            view_da=view_da, 
+                            view_gene_map=view_gene_map,
+                            n=15, 
+                            scale=2,
+                            view_feature_col=list(Phosphoproteomics="featureName",
+                                                  Metabolomics="metabolite_refmet"))
+  if (!is.null(ht)) {
+    png_path = file.path(here(), "plots", "MOFA", paste0("factor", f, "_heatmap.png"))
+    png(png_path, width=10, 
+        height=12, 
+        units="in", 
+        res=600)
+    ComplexHeatmap::draw(ht, merge_legend=TRUE,
+                         column_title=paste0("Factor ", f),
+                         column_title_gp=grid::gpar(fontsize=14, fontface="bold"))
+    dev.off()
+    cat("Saved:", png_path, "\n")
+  }
 }
 ```
 
