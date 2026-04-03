@@ -152,6 +152,9 @@ plot_enrichment_faceted = function(enrichment_list, factor, max_pathways = 8,
   df$view = factor(df$view, levels=names(enrichment_list))
   # within each view, order pathways by score for readability
   df$pathway_label = shorten_name(df$pathway)
+  # For duplicate shortened names, keep the most significant (lowest padj)
+  df = df[order(df$padj), ]
+  df = df[!duplicated(paste0(df$view, "|", df$pathway_label)), ]
   df$pathway_label = factor(df$pathway_label,
     levels=rev(unique(df$pathway_label[order(df$view, df$neg_log_padj)])))
 
@@ -321,7 +324,7 @@ plot_feature_weights = function(mofa_trained, factors = 1:3, views = NULL,
     n_cols = length(factors)
     n_rows = length(views)
     ggplot2::ggsave(png_path, plot = p, dpi = 600,
-                    width = 3.5 * n_cols, height = 1.5 + 0.25 * n_features * n_rows,
+                    width = 14, height = 1.5 + 0.25 * n_features * n_rows,
                     units = "in")
     cat("Saved:", png_path, "\n")
     invisible(p)
@@ -460,6 +463,49 @@ make_mofa_enrichment_heatmap = function(enrichment, view_name, ome_cols, col_fun
   )
 }
 
+
+get_mofa_da_df = function(mofa_trained,
+                          factor_num,
+                          view,
+                          da_results,
+                          n=15,
+                          gene_map=NULL,
+                          feat_col="featureName") {
+
+  weights = MOFA2::get_weights(mofa_trained, views=view, factors = factor_num, as.data.frame=TRUE) %>%
+    dplyr::arrange(dplyr::desc(abs(value))) %>%
+    dplyr::slice_head(n=n) %>%
+    dplyr::select(mofa_feature=feature, weight=value)
+
+  if (!is.null(gene_map)) {
+    mapped = gene_map(weights$mofa_feature)  # named vector: name=mofa_feature, value=da_id
+    feature_map = data.frame(
+      mofa_feature = names(mapped),
+      da_id = unname(mapped),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    feature_map = data.frame(
+      mofa_feature = weights$mofa_feature,
+      da_id = weights$mofa_feature,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  da_lookup = da_results %>%
+    dplyr::rename(da_id=!!feat_col) %>%
+    dplyr::mutate(da_id = toupper(as.character(da_id)))
+
+  weights %>%
+    dplyr::left_join(feature_map, by="mofa_feature") %>%
+    dplyr::left_join(da_lookup, by="da_id") %>%
+    select(mofa_feature, weight, contrast, z, adj.P.Val) %>%
+    mutate(z = as.numeric(z),
+           adj.P.Val = as.numeric(adj.P.Val)) %>%
+    arrange(desc(weight))
+}
+
+
 #' Combined heatmap of top-weighted MOFA features across multiple views
 #'
 #' For each view in \code{view_da}, extracts the top \code{n} features by
@@ -481,8 +527,12 @@ make_mofa_enrichment_heatmap = function(enrichment, view_name, ome_cols, col_fun
 #'
 #' @return A \code{ComplexHeatmap::Heatmap} object, or NULL (invisibly) when no
 #'   view yields matching features.
-mofa_feature_heatmap = function(mofa_trained, factor_num, view_da,
-                                view_gene_map=NULL, n=15, scale=1,
+mofa_feature_heatmap = function(mofa_trained,
+                                factor_num,
+                                view_da,
+                                view_gene_map=NULL,
+                                n=15,
+                                scale=1,
                                 padj_cutoff=0.05,
                                 view_feature_col=NULL) {
   factor_label = paste0("Factor", factor_num)
@@ -497,86 +547,49 @@ mofa_feature_heatmap = function(mofa_trained, factor_num, view_da,
     Metabolomics="#1a9850"
   )
 
-  # Build z and fdr matrices for one view's gene set.
-  # feature_col: the column in da_results holding feature IDs (default "gene_symbol").
-  # It is normalised to gene_symbol so the rest of the function is unchanged.
-  build_matrices = function(interested_genes, da_results, feature_col="gene_symbol") {
-    if (feature_col != "gene_symbol")
-      da_results = da_results %>% dplyr::mutate(gene_symbol=.data[[feature_col]])
-    da = da_results %>%
-      dplyr::filter(gene_symbol %in% interested_genes) %>%
-      dplyr::mutate(
-        sex = sub("^(.)_.*", "\\1", contrast),
-        group = sub("^._(\\S+).*", "\\1", contrast)
-      ) %>%
-      dplyr::group_by(contrast, gene_symbol) %>%
-      dplyr::slice_min(adj.P.Val) %>%
-      dplyr::ungroup()
-
-    da_tidy = da %>%
-      dplyr::group_by(sex) %>%
-      tidyr::complete(gene_symbol=interested_genes,
-                      group=expected_groups,
-                      fill=list(z=NaN)) %>%
-      dplyr::ungroup() %>%
-      dplyr::select(gene_symbol, group, z, adj.P.Val, sex)
-
-    make_mat = function(value_col) {
-      da_tidy %>%
-        dplyr::mutate(group=factor(group, levels=expected_groups)) %>%
-        dplyr::arrange(sex, group) %>%
-        dplyr::distinct(sex, group, gene_symbol, .keep_all=TRUE) %>%
-        dplyr::rename(value=!!value_col) %>%
-        tidyr::pivot_wider(id_cols=c(sex, group),
-                           values_from=value,
-                           names_from=gene_symbol) %>%
-        as.data.frame() %>%
-        `rownames<-`(with(., interaction(sex, group))) %>%
-        dplyr::select(-c(sex, group)) %>%
-        t() %>%
-        as.matrix()
-    }
-    list(z=make_mat("z"), fdr=make_mat("adj.P.Val"))
-  }
-
   z_mats = list()
   fdr_mats = list()
   view_labels = c()
 
   for (v in names(view_da)) {
-    suffix_pat = paste0("_(", toupper(v), ")$")
     gene_map = if (!is.null(view_gene_map)) view_gene_map[[v]] else NULL
+    feat_col = if (!is.null(view_feature_col[[v]])) view_feature_col[[v]] else "featureName"
 
-    features = MOFA2::get_weights(mofa_trained, views=v, as.data.frame=TRUE) %>%
-      dplyr::filter(factor == factor_label) %>%
-      dplyr::arrange(desc(value)) %>%
-      dplyr::slice_head(n=n) %>%
-      dplyr::mutate(feature=sub(suffix_pat, "", feature, ignore.case=TRUE)) %>%
-      dplyr::pull(feature)
+    da_df = get_mofa_da_df(mofa_trained,
+                           factor_num,
+                           v,
+                           view_da[[v]],
+                           n = n,
+                           gene_map = gene_map,
+                           feat_col = feat_col)
 
-    gene_ids = if (!is.null(gene_map)) gene_map(features) else features
-
-    feat_col = if (!is.null(view_feature_col[[v]])) view_feature_col[[v]] else "gene_symbol"
-
-    da_sub = view_da[[v]] %>%
-      dplyr::filter(toupper(.data[[feat_col]]) %in% toupper(gene_ids))
-
-    if (nrow(da_sub) == 0) {
+    if (all(is.na(da_df$z))) {
       message("No matching features for ", v, " Factor ", factor_num, " - skipping")
       next
     }
 
-    mats = build_matrices(unique(da_sub[[feat_col]]), view_da[[v]], feat_col)
-    # Reorder rows by weight order: features is already desc(abs(value))-sorted;
-    # match each feature to the actual rowname case used in the matrix.
-    row_order = rownames(mats$z)[match(toupper(gene_ids), toupper(rownames(mats$z)))]
-    row_order = row_order[!is.na(row_order)]
-    mats$z = mats$z[row_order, , drop=FALSE]
-    mats$fdr = mats$fdr[row_order, , drop=FALSE]
+    # Parse sex/group from contrast and pivot to feature x sex.group matrices.
+    # mofa_feature order from get_mofa_da_df is already sorted by weight.
+    make_mat = function(value_col) {
+      da_df %>%
+        dplyr::filter(!is.na(contrast)) %>%
+        dplyr::mutate(
+          sex = sub("^(.)_.*", "\\1", contrast),
+          group = sub("^._(\\S+).*", "\\1", contrast)
+        ) %>%
+        distinct(mofa_feature, sex, group, .keep_all = TRUE) %>%
+        droplevels() %>%
+        tidyr::pivot_wider(id_cols=mofa_feature,
+                           names_from=c(sex, group),
+                           names_sep=".",
+                           values_from=!!value_col) %>%
+        tibble::column_to_rownames("mofa_feature") %>%
+        as.matrix()
+    }
 
-    z_mats[[v]] = mats$z
-    fdr_mats[[v]] = mats$fdr
-    view_labels = c(view_labels, rep(v, nrow(mats$z)))
+    z_mats[[v]] = make_mat("z")
+    fdr_mats[[v]] = make_mat("adj.P.Val")
+    view_labels = c(view_labels, rep(v, nrow(z_mats[[v]])))
   }
 
   if (length(z_mats) == 0) return(invisible(NULL))
@@ -600,7 +613,7 @@ mofa_feature_heatmap = function(mofa_trained, factor_num, view_da,
     gp=grid::gpar(col="black"),
     gap=grid::unit(0, "pt"),
     which="column",
-    height=grid::unit(6 * 2, "pt") * scale,
+    height=grid::unit(8 * 2, "pt") * scale,
     col=list(
       Sex=c(Female=MotrpacBicQC::sex_cols[["Female"]],
             Male=MotrpacBicQC::sex_cols[["Male"]]),
@@ -631,7 +644,7 @@ mofa_feature_heatmap = function(mofa_trained, factor_num, view_da,
     annotation_legend_param=list(
       title="View",
       border="black",
-      labels_gp=grid::gpar(fontsize=6.5 * scale),
+      labels_gp=grid::gpar(fontsize=5.5 * scale),
       title_gp=grid::gpar(fontsize=7 * scale, fontface="bold")
     )
   )
@@ -648,8 +661,8 @@ mofa_feature_heatmap = function(mofa_trained, factor_num, view_da,
     top_annotation=top_ann,
     left_annotation=left_ann,
     border="black",
-    row_names_gp=grid::gpar(fontsize=7 * scale),
-    height=nrow(z_combined) * grid::unit(5.5, "pt") * scale,
+    row_names_gp=grid::gpar(fontsize=6 * scale),
+    height=nrow(z_combined) * grid::unit(6.5, "pt") * scale,
     width=ncol(z_combined) * grid::unit(5.5, "pt") * scale,
     column_split=ann_df$Sex,
     row_split=factor(view_labels, levels=names(z_mats)),

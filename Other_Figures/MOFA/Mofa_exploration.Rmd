@@ -14,6 +14,7 @@ library(tidyr)
 library(ggplot2)
 library(here)
 library(MotrpacRatTraining6moMuscleData)
+library(ComplexHeatmap)
 source(file.path(here(), "Other_Figures", "MOFA", "mofa_helpers.R"))
 
 mofa_out = file.path(here(), "Other_Figures", "MOFA", "saved_outputs")
@@ -89,46 +90,40 @@ cat("Complete features:", nrow(prot_mat), "\n")
 
 ## Phosphoproteomics (Protein-Normalized)
 
-See vignette for KSEA gene set testing for mapping info. 
+Log2 abundance adjusted for global protein changes. Features mapped to rat gene symbols;
+duplicate sites per gene are resolved by highest variance.
 
 ```{r}
 describe_eset(PHOSPHO_GN_NORM)
 
-# Map rat phospho features to human UniProt-site format (matches kinase_sets)
 site_map = fData(PHOSPHO_GN_NORM) %>%
   tibble::rownames_to_column("feature_id") %>%
-  select(feature_id) %>%
-  left_join(RAT_TO_HUMAN_SITE,
-            by = c("feature_id" = "ptm_id_rat_refseq")) %>%
-  rename(human_feature = ptm_id_human_uniprot) %>%
-  mutate(
-    is_human = !is.na(human_feature),
-    human_feature = ifelse(is_human, human_feature, feature_id),
-    human_uniprot = ifelse(is_human,
-                           sub("_.*", "", human_feature),
-                           sub("([A-Z]P_[^_]+).*", "\\1", human_feature)),
-    human_site = sub(".*_", "", human_feature),
-    human_site = strsplit(human_site, split = ";")
-  ) %>%
-  unnest(cols = human_site) %>%
-  mutate(featureID = paste0(human_uniprot, "-", human_site))
+  mutate(gene_symbol = toupper(gene_symbol),
+         gene_site = paste0(gene_symbol, "_", ptm_id)) %>%
+  select(feature_id, gene_symbol, gene_site) 
 
 phospho_mat = exprs(PHOSPHO_GN_NORM) %>%
   as.data.frame() %>%
   tibble::rownames_to_column("feature_id") %>%
-  left_join(site_map %>% select(feature_id, featureID), by = "feature_id") %>%
+  left_join(site_map, by = "feature_id") %>%
   select(-feature_id) %>%
-  # For duplicate sites, keep the row with highest variance
-  mutate(row_var = apply(select(., -featureID), 1, var, na.rm = TRUE)) %>%
-  arrange(featureID, -row_var) %>%
-  filter(!duplicated(featureID)) %>%
-  select(-row_var) %>%
-  tibble::column_to_rownames("featureID") %>%
+  filter(!is.na(gene_symbol)) %>%
+  # compute per-row variance across expression columns only (- excludes string ID cols)
+  # then pick the one site per gene with the highest variance
+  mutate(row_var = apply(select(., -gene_site, -gene_symbol), 1, var, na.rm = TRUE)) %>%
+  group_by(gene_symbol) %>%
+  slice_max(row_var, n=1, with_ties=FALSE) %>%
+  ungroup() %>%
+  select(-row_var, -gene_symbol) %>%
+  tibble::column_to_rownames("gene_site") %>%
   as.matrix()
+
+site_map = site_map %>% filter(gene_site %in% rownames(phospho_mat))
 phospho_mat = phospho_mat[complete.cases(phospho_mat), ]
 
 cat("Complete features:", nrow(phospho_mat), "\n")
 ```
+
 
 ## Redox Proteomics (Protein-Normalized)
 
@@ -140,7 +135,9 @@ describe_eset(REDOX_GN_NORM)
 
 redox_feature_map = fData(REDOX_GN_NORM) %>%
   tibble::rownames_to_column("feature_id") %>%
-  select(feature_id, gene_symbol)
+  mutate(gene_symbol = toupper(gene_symbol),
+         gene_site = paste0(gene_symbol, "_", ptm_id)) %>%
+  select(feature_id, gene_symbol, gene_site) 
 
 redox_mat = exprs(REDOX_GN_NORM) %>%
   as.data.frame() %>%
@@ -148,12 +145,18 @@ redox_mat = exprs(REDOX_GN_NORM) %>%
   left_join(redox_feature_map, by = "feature_id") %>%
   select(-feature_id) %>%
   filter(!is.na(gene_symbol)) %>%
-  mutate(row_var = apply(select(., -gene_symbol), 1, var, na.rm = TRUE)) %>%
-  arrange(gene_symbol, -row_var) %>%
-  filter(!duplicated(gene_symbol)) %>%
-  select(-row_var) %>%
-  tibble::column_to_rownames("gene_symbol") %>%
+  # compute per-row variance across expression columns only (- excludes string ID cols)
+  # then pick the one site per gene with the highest variance
+  mutate(row_var = apply(select(., -gene_site, -gene_symbol), 1, var, na.rm = TRUE)) %>%
+  group_by(gene_symbol) %>%
+  slice_max(row_var, n=1, with_ties=FALSE) %>%
+  ungroup() %>%
+  select(-row_var, -gene_symbol) %>%
+  tibble::column_to_rownames("gene_site") %>%
   as.matrix()
+
+redox_feature_map = redox_feature_map %>% filter(gene_site %in% rownames(redox_mat))
+
 redox_mat = redox_mat[complete.cases(redox_mat), ]
 
 cat("Complete features:", nrow(redox_mat), "\n")
@@ -162,27 +165,40 @@ cat("Complete features:", nrow(redox_mat), "\n")
 ## Metabolomics
 
 Normalized log2 abundance. Features are mapped to RefMet standardized names; where a
-metabolite appears in multiple datasets the highest-variance row is retained.
+metabolite appears in multiple datasets, the higher variance one is picked
 
 ```{r}
 describe_eset(METAB_GN)
 
 metab_feature_map = fData(METAB_GN) %>%
   tibble::rownames_to_column("feature_id") %>%
-  select(feature_id, refmet_name = metabolite_refmet)
+  select(feature_id, refmet_name = metabolite_refmet) %>%
+  mutate(refmet_name = toupper(refmet_name))
+
+# How many raw features map to the same refmet name?
+repeated_samples = metab_feature_map %>%
+  filter(!is.na(refmet_name)) %>%
+  count(refmet_name, name = "n_features") %>%
+  filter(n_features > 1) %>%
+  arrange(desc(n_features)) 
 
 metab_mat = exprs(METAB_GN) %>%
   as.data.frame() %>%
   tibble::rownames_to_column("feature_id") %>%
   left_join(metab_feature_map, by = "feature_id") %>%
-  select(-feature_id) %>%
+  # select(-feature_id) %>%
   filter(!is.na(refmet_name)) %>%
-  mutate(row_var = apply(select(., -refmet_name), 1, var, na.rm = TRUE)) %>%
-  arrange(refmet_name, -row_var) %>%
-  filter(!duplicated(refmet_name)) %>%
+  mutate(row_var = apply(select(., -feature_id, -refmet_name), 1, var, na.rm = TRUE)) %>%
+  group_by(refmet_name) %>%
+  slice_max(row_var, n=1, with_ties=FALSE) %>%
+  ungroup() %>%
   select(-row_var) %>%
-  tibble::column_to_rownames("refmet_name") %>%
-  as.matrix()
+  tibble::column_to_rownames("refmet_name") 
+
+metab_da_selected_plat = METAB_GN_DA[["trained_vs_SED"]] %>% filter(featureName %in% metab_mat$feature_id)
+
+metab_mat = metab_mat %>% select(-feature_id) %>% as.matrix()
+
 metab_mat = metab_mat[complete.cases(metab_mat), ]
 
 cat("Complete features:", nrow(metab_mat), "\n")
@@ -324,7 +340,7 @@ plot_factor(mofa_trained, factors = 1:4, color_by = "timepoint", shape_by = "sex
 plot_factor(mofa_trained, factors = 1:4, color_by = "sex", shape_by = "timepoint")
 ```
 
-Factor 2 appears to separate well by sex.
+Factor 1 appears to separate well by sex.
 
 ## Factor correlations
 
@@ -336,9 +352,13 @@ plot_factor_cor(mofa_trained)
 
 
 ```{r feature_weights, fig.width=12, fig.height=10}
-# source(file.path(here(), "Other_Figures", "MOFA", "mofa_helpers.R"))
-
-plot_feature_weights(mofa_trained, factors = 2, n_features = 12)
+for (f in 1:10) {
+  p = plot_feature_weights(mofa_trained,
+                           factors = f,
+                           n_features = 8,
+                           png_path = file.path(here(), "plots", "MOFA", paste0("factor", f, "_feature_weights.png")))
+  print(p)
+}
 ```
 
 ## Enrichment: Transcriptomics
@@ -352,14 +372,6 @@ enrichment_trnscrpt = run_mofa_enrichment(mofa_trained,
                                           feature_sets = trnscrpt_GN_gene_sets,
                                           factors = 1:10,
                                           csv_path = file.path(mofa_out, "enrichment_transcriptomics.csv")
-)
-```
-
-```{r}
-plot_enrichment_detailed(enrichment_trnscrpt$down,
-                         factor = 1,
-                         max.genes = 8,
-                         max.pathways = 5
 )
 ```
 
@@ -379,15 +391,20 @@ enrichment_prot = run_mofa_enrichment(mofa_trained,
 
 ## Enrichment: Phosphoproteomics
 
-```{r, eval = T}
-features_names(mofa_trained)[["Phosphoproteomics"]] = toupper(features_names(mofa_trained)[["Phosphoproteomics"]])
+```{r}
+#trim the sites off the names for initial enrichment. then put them back after
+phospho_site_names = features_names(mofa_trained)[["Phosphoproteomics"]]
+features_names(mofa_trained)[["Phosphoproteomics"]] = sub("_.*", "", toupper(features_names(mofa_trained)[["Phosphoproteomics"]]))
 
 enrichment_phospho = run_mofa_enrichment(mofa_trained,
                                          view = "Phosphoproteomics",
-                                         feature_sets = phospho_GN_NORM_kinase_sets,
+                                         feature_sets = prot_GN_gene_sets,
                                          factors = 1:10,
                                          csv_path = file.path(mofa_out, "enrichment_phosphoproteomics.csv")
 )
+
+#and put back the names 
+features_names(mofa_trained)[["Phosphoproteomics"]] = phospho_site_names
 ```
 
 ## Enrichment: Redox Proteomics
@@ -395,14 +412,17 @@ enrichment_phospho = run_mofa_enrichment(mofa_trained,
 Feature names are rat gene symbols (touppered to match gene sets).
 
 ```{r}
-features_names(mofa_trained)[["Redox"]] = toupper(features_names(mofa_trained)[["Redox"]])
+redox_site_names = features_names(mofa_trained)[["Redox"]]
+features_names(mofa_trained)[["Redox"]] = sub("_.*", "", toupper(features_names(mofa_trained)[["Redox"]]))
 
 enrichment_redox = run_mofa_enrichment(mofa_trained,
                                        view = "Redox",
-                                       feature_sets = redox_GN_NORM_gene_sets,
+                                       feature_sets = prot_GN_gene_sets,
                                        factors = 1:10,
                                        csv_path = file.path(mofa_out, "enrichment_redox.csv")
 )
+
+features_names(mofa_trained)[["Redox"]] = redox_site_names
 ```
 
 ## Enrichment: Metabolomics
@@ -483,6 +503,7 @@ col_fun_enrich = circlize::colorRamp2(
 ome_cols_mofa = c(
   Transcriptomics="#4575b4",
   Proteomics="#d73027",
+  Phosphoproteomics="#f46d43",
   Redox="#74add1",
   Metabolomics="#1a9850"
 )
@@ -533,61 +554,48 @@ if (length(enrich_heatmaps) > 0) {
 
 ## Feature heatmaps
 
-Heatmaps of the top-weighted features per factor for three views whose feature
-names map cleanly to the `gene_symbol` column of the differential-analysis
-objects.  Transcriptomics features are human gene symbols in the MOFA object
-and are reverse-mapped to rat gene symbols via `RAT_TO_HUMAN` before looking
-up DA results.  Phosphoproteomics and Metabolomics are omitted here because
-their feature identifiers (UniProt-site and RefMet names, respectively) do not
-align directly with the `gene_symbol` column expected by `feature_heatmap`.
-
 ```{r feature_heatmaps, fig.width=10, fig.height=6, results='hide', message=FALSE}
-library(ComplexHeatmap)
+phospho_mofa_to_da = function(mofa_features) {
+  m = site_map %>%
+    dplyr::filter(gene_site %in% mofa_features)
+  setNames(m$feature_id, m$gene_site)
+}
 
-# Reverse-map MOFA transcriptomics human symbols → rat gene symbols
-human_to_rat = function(human_features) {
-  RAT_TO_HUMAN %>%
-    dplyr::filter(toupper(human_symbol) %in% toupper(human_features)) %>%
-    dplyr::pull(symbol)
+redox_mofa_to_da = function(mofa_features){
+  m = redox_feature_map %>%
+    dplyr::filter(gene_site %in% mofa_features)
+  setNames(m$feature_id, m$gene_site)
 }
 
 view_da = list(
   Transcriptomics = TRNSCRPT_GN_DA[["trained_vs_SED"]],
-  Proteomics = PROT_GN_DA[["trained_vs_SED"]],
+  Proteomics = PROT_GN_DA[["trained_vs_SED"]] %>% filter(!is.na(description)),
   Phosphoproteomics = PHOSPHO_GN_DA[["trained_vs_SED"]],
   Redox = REDOX_GN_NORM_DA[["trained_vs_SED"]],
-  Metabolomics = METAB_GN_DA[["trained_vs_SED"]]
+  Metabolomics = metab_da_selected_plat #see above -> need to make sure i filter to the specific platforms i use. 
 )
 
-phospho_mofa_to_da = function(mofa_features) {
-  site_map %>%
-    dplyr::filter(featureID %in% mofa_features) %>%
-    dplyr::pull(feature_id)
-}
-
 view_gene_map = list(
-  Transcriptomics = human_to_rat,
+  Transcriptomics = NULL,
   Proteomics = NULL,
   Phosphoproteomics = phospho_mofa_to_da,
-  Redox = NULL,
+  Redox = redox_mofa_to_da,
   Metabolomics = NULL
 )
 
-for (f in 2:3) {
-  ht = mofa_feature_heatmap(mofa_trained, 
+for (f in 1:10) {
+  ht = mofa_feature_heatmap(mofa_trained,
                             factor_num=f,
-                            view_da=view_da, 
+                            view_da=view_da,
                             view_gene_map=view_gene_map,
-                            n=15, 
-                            scale=2,
-                            view_feature_col=list(Phosphoproteomics="featureName",
+                            n=8,
+                            scale=3,
+                            view_feature_col=list(Transcriptomics = "gene_symbol",
+                                                  Proteomics = "gene_symbol",
                                                   Metabolomics="metabolite_refmet"))
   if (!is.null(ht)) {
     png_path = file.path(here(), "plots", "MOFA", paste0("factor", f, "_heatmap.png"))
-    png(png_path, width=10, 
-        height=12, 
-        units="in", 
-        res=600)
+    png(png_path, width=10, height=12, units="in", res=600)
     ComplexHeatmap::draw(ht, merge_legend=TRUE,
                          column_title=paste0("Factor ", f),
                          column_title_gp=grid::gpar(fontsize=14, fontface="bold"))
@@ -595,5 +603,28 @@ for (f in 2:3) {
     cat("Saved:", png_path, "\n")
   }
 }
+```
+```{r}
+factor2_redox = list(Redox = REDOX_GN_NORM_DA[["trained_vs_SED"]])
+#deep dive specifically on Factor 2 redox
+ht = mofa_feature_heatmap(mofa_trained,
+                          factor_num=2,
+                          view_da=factor2_redox,
+                          view_gene_map=view_gene_map,
+                          n=20,
+                          scale=3,
+                          view_feature_col=list(Transcriptomics = "gene_symbol",
+                                                Proteomics = "gene_symbol",
+                                                Metabolomics="metabolite_refmet"))
+if (!is.null(ht)) {
+  png_path = file.path(here(), "plots", "MOFA", paste0("factor", 2, "deepdive_heatmap.png"))
+  png(png_path, width=10, height=12, units="in", res=600)
+  ComplexHeatmap::draw(ht, merge_legend=TRUE,
+                       column_title=paste0("Factor ", 2),
+                       column_title_gp=grid::gpar(fontsize=14, fontface="bold"))
+  dev.off()
+  cat("Saved:", png_path, "\n")
+}
+
 ```
 
