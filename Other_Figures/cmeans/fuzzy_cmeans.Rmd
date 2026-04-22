@@ -12,7 +12,7 @@ knitr::opts_chunk$set(
   fig.height = 4
 )
 
-save_plots <- dir.exists(file.path("..", "..", "plots"))
+save_plots <- dir.exists(file.path(here(), "plots"))
 ```
 
 Documentation:
@@ -143,7 +143,6 @@ eset <- ExpressionSet(
 eset # summary of ExpressionSet object
 ```
 
-
 ```{r eval=TRUE}
 # Fuzzy C-Means (FCM) clustering ----
 # Split by sex
@@ -210,7 +209,6 @@ for(sex_i in c("Female", "Male")){
   dev.off()
 }
 
-# saveRDS(FCM, file = "~/Downloads/muscle_6mo_FCM.RDS")
 ```
 
 ```{r}
@@ -307,60 +305,6 @@ head(FCM_FGSEA_SEX_STRATIFIED)
 
 ## Plot Top Terms by Cluster
 
-```{r ORA enrichment-bubble-heatmaps, eval=save_plots}
-for (ome_i in unique(FCM_ORA_SEX_STRATIFIED$ome)) {
-  for (sex_i in c("Female", "Male")) {
-    desired_clusters <- if(sex_i == "Female") c(2, 3, 8, 11) else c(1, 4, 7, 12)
-    x <- FCM_ORA_SEX_STRATIFIED %>%
-      filter(ome==ome_i, sex==sex_i, cluster_num %in% desired_clusters)
-    plot_enrichmap_clusters(
-      x,
-      set_col="GeneSetShort",
-      n_top=6L,
-      cluster_rows=FALSE,
-      height_extra=0,
-      width_extra=5,
-      filename=file.path("..", "..", "plots", "fuzzy_cmeans", "ORA",
-                         sprintf("%s-%s_select-clusters_cmeans_ORA.png", ome_i, sex_i))
-    )
-  }
-}
-```
-
-```{r camera select enrichment-bubble-heatmaps, eval=save_plots}
-for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
-  for (sex_i in c("Female", "Male")) {
-    desired_clusters <- if(sex_i == "Female") c(2, 3, 8, 11) else c(1, 4, 7, 12)
-    x <- FCM_CAMERA_SEX_STRATIFIED %>%
-      filter(ome==ome_i, sex==sex_i, cluster_num %in% as.factor(desired_clusters))
-    plot_enrichmap_clusters(
-      x,
-      set_col="GeneSet",
-      n_top=10L,
-      filename=file.path("..", "..", "plots", "fuzzy_cmeans", "cameraPR",
-                         sprintf("%s-%s_select-clusters_cmeans_CAMERA.png", ome_i, sex_i))
-    )
-  }
-}
-```
-
-```{r fgsea select enrichment-bubble-heatmaps, eval=save_plots}
-for (ome_i in unique(FCM_FGSEA_SEX_STRATIFIED$ome)) {
-  for (sex_i in c("Female", "Male")) {
-    desired_clusters <- if(sex_i == "Female") c(2, 3, 8, 11) else c(1, 4, 7, 12)
-    x <- FCM_FGSEA_SEX_STRATIFIED %>%
-      filter(ome==ome_i, sex==sex_i, cluster_num %in% as.factor(desired_clusters))
-    plot_enrichmap_clusters(
-      x,
-      set_col="GeneSet",
-      n_top=10L,
-      filename=file.path("..", "..", "plots", "fuzzy_cmeans", "fgsea",
-                         sprintf("%s-%s_select-clusters_cmeans_fgsea.png", ome_i, sex_i))
-    )
-  }
-}
-```
-
 All clusters (supplement version):
 
 ```{r camera all enrichment-bubble-heatmaps, eval=save_plots}
@@ -372,7 +316,7 @@ for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
       x,
       set_col="GeneSet",
       n_top=10L,
-      filename=file.path("..", "..", "plots", "fuzzy_cmeans", "cameraPR",
+      filename=file.path(here(), "plots", "fuzzy_cmeans", "cameraPR",
                          sprintf("%s-%s_cmeans_CAMERA.png", ome_i, sex_i))
     )
   }
@@ -490,7 +434,7 @@ for(direction in names(camera_res)){
   combined_heatmap =  Reduce(`%v%`, camera_heatmaps)
   
   pdf(
-    file.path("..", "..", "plots", "fuzzy_cmeans", "cameraPR",
+    file.path(here(), "plots", "fuzzy_cmeans", "cameraPR",
               sprintf("%s_select-clusters_combined_cmeans_CAMERA.pdf", direction)),
     width = 12, height = 10
   )
@@ -584,7 +528,6 @@ lapply(names(filt_index), FUN = function(pathway_name){
 })
 
 ```
-
 
 
 # Session Info

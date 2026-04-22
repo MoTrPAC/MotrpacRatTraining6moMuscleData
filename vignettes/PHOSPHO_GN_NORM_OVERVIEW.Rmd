@@ -62,20 +62,24 @@ pca_df$viallabel = rownames(pca_df)
 
 pca_df = pca_df %>%
   left_join(pd[, c("viallabel", "sex", "timepoint")], by = "viallabel") %>%
-  mutate(timepoint = factor(timepoint, levels = c("SED", "1W", "2W", "4W", "8W")))
+  mutate(
+    timepoint = recode(timepoint, "SED" = "control"),
+    timepoint = factor(timepoint, levels = c("1W", "2W", "4W", "8W", "control"))
+  )
 ```
 
-```{r, fig.width=8, fig.height=6}
-ggplot(pca_df, aes(x = PC1, y = PC2, color = sex, shape = timepoint, label = viallabel)) +
-  geom_point(size = 3) +
-  geom_text(size = 2, vjust = -0.6, show.legend = FALSE, check_overlap = TRUE) +
-  scale_color_manual(values = c("Female" = "#E7298A", "Male" = "#1B9E77")) +
-  scale_shape_manual(values = c("SED" = 16, "1W" = 17, "2W" = 15, "4W" = 18, "8W" = 8)) +
+```{r, fig.width=10, fig.height=8}
+ggplot(pca_df, aes(x = PC1, y = PC2, color = timepoint, fill = timepoint, shape = sex)) +
+  geom_point(size = 4, stroke = 1.5) +
+  scale_color_manual(values = c("control" = "grey", "1W" = "#F7FCB9", "2W" = "#ADDD8E", "4W" = "#238443", "8W" = "#002612")) +
+  scale_fill_manual(values = c("control" = "grey", "1W" = "#F7FCB9", "2W" = "#ADDD8E", "4W" = "#238443", "8W" = "#002612")) +
+  scale_shape_manual(values = c("Female" = 21, "Male" = 24)) +
   labs(
     x = sprintf("PC1 (%.1f%%)", var_exp[1]),
     y = sprintf("PC2 (%.1f%%)", var_exp[2]),
-    color = "Sex",
-    shape = "Timepoint",
+    color = "Group",
+    fill = "Group",
+    shape = "Sex",
     title = "PHOSPHO_GN_NORM PCA"
   ) +
   theme_bw()

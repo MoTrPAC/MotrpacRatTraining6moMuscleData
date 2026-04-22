@@ -307,7 +307,7 @@ mofa_obj = MOFA2::prepare_mofa(
 )
 ```
 
-```{r, results='hide', message=FALSE}
+```{r, results='hide', message=FALSE, warning=FALSE}
 # mofa_trained = MOFA2::run_mofa(mofa_obj,
 #                                outfile = file.path(here(), "Other_Figures", "MOFA", "mofa_trained.out"),
 #                                use_basilisk = TRUE)
@@ -317,6 +317,11 @@ mofa_trained = load_model(
 )
 ```
 
+```{r}
+get_weights(mofa_trained, as.data.frame = TRUE) %>%
+  write.csv(., file = file.path(here(), "Other_Figures", "MOFA", "all_feature_weights.csv"), row.names = FALSE)
+```
+
 # Downstream exploration
 
 ## Variance explained
@@ -324,20 +329,48 @@ mofa_trained = load_model(
 Total and per-factor variance explained by each view.
 
 ```{r}
-plot_variance_explained(mofa_trained, plot_total = TRUE)
+ve_plots = plot_variance_explained(mofa_trained, plot_total = TRUE)
+p_ve = patchwork::wrap_plots(ve_plots)
+ggsave(file.path(here(), "plots", "MOFA", "variance_explained.png"),
+       plot = p_ve, width = 12, height = 5, units = "in", dpi = 600)
+p_ve
 ```
 
 ## Factor plots
 
 Visualize sample loadings on the first four factors, colored by experimental
-variables.
+variables. I'm not sure why the plot_factors function is not working well for SEDS. 
+
+Just plot through ggplot
 
 ```{r, fig.width=8, fig.height=6}
-plot_factor(mofa_trained, factors = 1:4, color_by = "timepoint", shape_by = "sex")
-```
+factor_df = get_factors(mofa_trained, factors = 1:4, as.data.frame = TRUE) %>%
+  left_join(samples_metadata(mofa_trained), by = "sample") %>%
+  mutate(
+    factor = factor(factor, levels = paste0("Factor", 1:4)),
+    timepoint = factor(timepoint, levels = c("SED", "1W", "2W", "4W", "8W"))
+  )
 
-```{r, fig.width=8, fig.height=6}
-plot_factor(mofa_trained, factors = 1:4, color_by = "sex", shape_by = "timepoint")
+p_factor_sex = ggplot(factor_df, aes(x = "", y = value, fill = sex, shape = timepoint)) +
+  geom_jitter(width = 0.4, height = 0, size = 2.5, color = "black", stroke = 0.4) +
+  facet_wrap(~factor, nrow = 1) +
+  scale_shape_manual(values = c("SED" = 25, "1W" = 21, "2W" = 24, "4W" = 22, "8W" = 23)) +
+  scale_fill_manual(
+    values = c(Female = MotrpacBicQC::sex_cols[["Female"]],
+               Male   = MotrpacBicQC::sex_cols[["Male"]])
+  ) +
+  labs(x = NULL, y = "Factor value", fill = "sex", shape = "timepoint") +
+  theme_bw() +
+  theme(
+    axis.text  = element_text(size = 12),
+    axis.title = element_text(size = 13),
+    strip.text = element_text(size = 12),
+    legend.text  = element_text(size = 11),
+    legend.title = element_text(size = 12)
+  )
+ggsave(file.path(here(), "plots", "MOFA", "factor_plot_by_sex.png"),
+       plot = p_factor_sex, width = 8, height = 6, units = "in", dpi = 600)
+p_factor_sex
 ```
 
 Factor 1 appears to separate well by sex.
@@ -350,7 +383,6 @@ plot_factor_cor(mofa_trained)
 
 ## Feature weight plots
 
-
 ```{r feature_weights, fig.width=12, fig.height=10}
 for (f in 1:10) {
   p = plot_feature_weights(mofa_trained,
@@ -359,6 +391,24 @@ for (f in 1:10) {
                            png_path = file.path(here(), "plots", "MOFA", paste0("factor", f, "_feature_weights.png")))
   print(p)
 }
+
+```
+
+```{r}
+#custom plots for panel 2, 3
+p = plot_feature_weights(mofa_trained,
+                         factors = 2,
+                         views = "Redox",
+                         n_features = 20,
+                         png_path = file.path(here(), "plots", "MOFA", "custom_panels", paste0("factor", 2, "_redox_feature_weights.png")))
+
+p = plot_feature_weights(mofa_trained,
+                         factors = 3,
+                         views = c("Proteomics",
+                                   "Phosphoproteomics",
+                                   "Redox"),
+                         n_features = 10,
+                         png_path = file.path(here(), "plots", "MOFA", "custom_panels", paste0("factor", 3, "_prot_feature_weights.png")))
 ```
 
 ## Enrichment: Transcriptomics
@@ -449,7 +499,7 @@ Edit `factor_to_plot` to explore other factors.
 all_enrichments = list(
   Transcriptomics = enrichment_trnscrpt,
   Proteomics = enrichment_prot,
-  # Phosphoproteomics = enrichment_phospho,
+  Phosphoproteomics = enrichment_phospho,
   Redox = enrichment_redox,
   Metabolomics = enrichment_metab
 )
@@ -468,6 +518,26 @@ for (f in 1:10) {
                               png_path = file.path(here(), "plots", "MOFA", paste0("factor", f, ".png")))
   print(p)
 }
+
+```
+
+Custom factor 2,3 plots
+```{r}
+p = plot_enrichment_faceted(list(Redox = enrichment_redox),
+                            factor = 2,
+                            max_pathways = 7,
+                            width = 6,
+                            png_path = file.path(here(), "plots", "MOFA", "custom_panels", paste0("factor", 2, "_redox_pathways.png")))
+print(p)
+
+p = plot_enrichment_faceted(list(Proteomics = enrichment_prot,
+                                 Phosphoproteomics = enrichment_phospho,
+                                 Redox = enrichment_redox),
+                            factor = 3,
+                            max_pathways = 7,
+                            width = 12,
+                            png_path = file.path(here(), "plots", "MOFA","custom_panels",  paste0("factor", 3, "_protein_pathways.png")))
+print(p)
 ```
 
 ## Combined enrichment bubble heatmap
@@ -555,44 +625,8 @@ if (length(enrich_heatmaps) > 0) {
 ## Feature heatmaps
 
 ```{r feature_heatmaps, fig.width=10, fig.height=6, results='hide', message=FALSE}
-phospho_mofa_to_da = function(mofa_features) {
-  m = site_map %>%
-    dplyr::filter(gene_site %in% mofa_features)
-  setNames(m$feature_id, m$gene_site)
-}
-
-redox_mofa_to_da = function(mofa_features){
-  m = redox_feature_map %>%
-    dplyr::filter(gene_site %in% mofa_features)
-  setNames(m$feature_id, m$gene_site)
-}
-
-view_da = list(
-  Transcriptomics = TRNSCRPT_GN_DA[["trained_vs_SED"]],
-  Proteomics = PROT_GN_DA[["trained_vs_SED"]] %>% filter(!is.na(description)),
-  Phosphoproteomics = PHOSPHO_GN_DA[["trained_vs_SED"]],
-  Redox = REDOX_GN_NORM_DA[["trained_vs_SED"]],
-  Metabolomics = metab_da_selected_plat #see above -> need to make sure i filter to the specific platforms i use. 
-)
-
-view_gene_map = list(
-  Transcriptomics = NULL,
-  Proteomics = NULL,
-  Phosphoproteomics = phospho_mofa_to_da,
-  Redox = redox_mofa_to_da,
-  Metabolomics = NULL
-)
-
 for (f in 1:10) {
-  ht = mofa_feature_heatmap(mofa_trained,
-                            factor_num=f,
-                            view_da=view_da,
-                            view_gene_map=view_gene_map,
-                            n=8,
-                            scale=3,
-                            view_feature_col=list(Transcriptomics = "gene_symbol",
-                                                  Proteomics = "gene_symbol",
-                                                  Metabolomics="metabolite_refmet"))
+  ht = mofa_feature_heatmap_zscore(mofa_trained, factor_num=f, n=8, scale=3)
   if (!is.null(ht)) {
     png_path = file.path(here(), "plots", "MOFA", paste0("factor", f, "_heatmap.png"))
     png(png_path, width=10, height=12, units="in", res=600)
@@ -604,27 +638,55 @@ for (f in 1:10) {
   }
 }
 ```
+
+
 ```{r}
-factor2_redox = list(Redox = REDOX_GN_NORM_DA[["trained_vs_SED"]])
-#deep dive specifically on Factor 2 redox
-ht = mofa_feature_heatmap(mofa_trained,
-                          factor_num=2,
-                          view_da=factor2_redox,
-                          view_gene_map=view_gene_map,
-                          n=20,
-                          scale=3,
-                          view_feature_col=list(Transcriptomics = "gene_symbol",
-                                                Proteomics = "gene_symbol",
-                                                Metabolomics="metabolite_refmet"))
+ht = mofa_feature_heatmap_zscore(mofa_trained, 
+                                 views = c("Proteomics",
+                                           "Phosphoproteomics",
+                                           "Redox"),
+                                 factor_num=3, n=8, scale=3)
+
 if (!is.null(ht)) {
-  png_path = file.path(here(), "plots", "MOFA", paste0("factor", 2, "deepdive_heatmap.png"))
-  png(png_path, width=10, height=12, units="in", res=600)
+    png_path = file.path(here(), "plots", "MOFA", "custom_panels", paste0("factor", 3, "_prot_heatmap.png"))
+    png(png_path, width=10, height=12, units="in", res=600)
+    ComplexHeatmap::draw(ht, merge_legend=TRUE,
+                         column_title=paste0("Factor ", 3),
+                         column_title_gp=grid::gpar(fontsize=14, fontface="bold"))
+    dev.off()
+    cat("Saved:", png_path, "\n")
+  }
+
+```
+
+```{r}
+phospho_mofa_to_da = function(mofa_features) {
+  m = site_map %>%
+    dplyr::filter(gene_site %in% mofa_features)
+  setNames(m$feature_id, m$gene_site)
+}
+
+redox_mofa_to_da = function(mofa_features) {
+  m = redox_feature_map %>%
+    dplyr::filter(gene_site %in% mofa_features)
+  setNames(m$feature_id, m$gene_site)
+}
+
+# deep dive specifically on Factor 2 redox
+ht = mofa_feature_heatmap_da(mofa_trained,
+                             factor_num=2,
+                             view_da=list(Redox = REDOX_GN_NORM_DA[["trained_vs_SED"]]),
+                             view_gene_map=list(Redox = redox_mofa_to_da),
+                             n=20,
+                             scale=3)
+if (!is.null(ht)) {
+  png_path = file.path(here(), "plots", "MOFA", "custom_panels", paste0("factor", 2, "_deepdive_heatmap.png"))
+  png(png_path, width=10, height=10, units="in", res=600)
   ComplexHeatmap::draw(ht, merge_legend=TRUE,
                        column_title=paste0("Factor ", 2),
                        column_title_gp=grid::gpar(fontsize=14, fontface="bold"))
   dev.off()
   cat("Saved:", png_path, "\n")
 }
-
 ```
 

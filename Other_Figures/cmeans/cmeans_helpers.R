@@ -127,3 +127,125 @@ make_camera_heatmap <- function(statistic_mat, padj_mat, col_fun,
     }
   )
 }
+
+# Build a bubble heatmap for enrichment results, saving to filename.
+# x:           pre-filtered data frame with columns set_col, cluster_num, adj_p_value, p_value
+# set_col:     column name for gene set labels
+# n_top:       top N terms per cluster (selected by smallest p_value among adj_p_value < 0.05)
+# cluster_rows: whether to cluster heatmap rows
+# height_extra / width_extra: extra inches added to the auto-computed dimensions
+plot_enrichmap_clusters <- function(x, set_col = "GeneSet", n_top = 10L,
+                                    cluster_rows = TRUE,
+                                    height_extra = 1, width_extra = 6,
+                                    filename) {
+  ome_i <- if ("ome" %in% colnames(x)) unique(x$ome) else NULL
+  padj_threshold <- 0.05 + 0.05 * isTRUE(length(ome_i) == 1L && ome_i == "PHOSPHO_GN")
+
+  top_terms <- x %>%
+    filter(adj_p_value < padj_threshold) %>%
+    slice_min(p_value, n = n_top, by = cluster_num) %>%
+    pull(all_of(set_col)) %>%
+    unique()
+
+  x <- x %>%
+    filter(.data[[set_col]] %in% top_terms) %>%
+    mutate(logP = -log10(p_value))
+
+  height <- grid::convertUnit(length(top_terms) * grid::unit(15, "pt"), "in")
+  height <- max(as.numeric(height) + 0.2, 4) + height_extra
+
+  row_label_width <- grid::convertUnit(
+    ComplexHeatmap::max_text_width(x[[set_col]]), "in"
+  )
+  width <- grid::convertUnit(nlevels(factor(x$cluster_num)) * grid::unit(15, "pt"), "in")
+  width <- as.numeric(width + row_label_width) + width_extra
+
+  enrichmap(
+    x = x,
+    plot_sig_only = FALSE,
+    n_top = Inf,
+    statistic_column = "logP",
+    set_column = set_col,
+    padj_column = "adj_p_value",
+    padj_legend_title = "BH Adjusted\nP-Value",
+    contrast_column = "cluster_num",
+    heatmap_args = list(
+      na_col = "grey95",
+      rect_gp = grid::gpar(fill = "white", col = "grey85"),
+      cluster_rows = cluster_rows,
+      cluster_columns = FALSE,
+      heatmap_legend_param = list(
+        title = latex2exp::TeX("$\\bf{$-$log_{10}(P$-$Value)}$"),
+        at = c(0, 20),
+        labels = c(0, 20)
+      ),
+      column_names_side = "top"
+    ),
+    color = c("white", "#503080"),
+    filename = filename,
+    height = height,
+    width = width
+  )
+}
+
+# Run ORA (Fisher's exact) for each sex × ome × cluster combination.
+# Returns a data frame with columns: sex, ome, cluster_num, set, p_value, adj_p_value, ...
+run_fcm_ora <- function(eset, eset_list, FCM, index_list, num_clusters) {
+  lapply(c("Female", "Male"), function(sex_i) {
+    cl <- FCM[[sex_i]]
+    eset_i <- eset_list[[sex_i]]
+
+    lapply(unique(fData(eset)[["ome"]]), function(ome_i) {
+      keep <- fData(eset_i)[["ome"]] == ome_i
+      cluster <- cl$cluster[keep]
+      names(cluster) <- fData(eset_i)[["featureName2"]][keep]
+      cluster <- cluster[order(cluster)]
+      cluster_list <- split(names(cluster),
+                            factor(cluster, levels = as.character(unique(cluster))))
+
+      background <- fData(eset_list[[sex_i]]) %>%
+        filter(ome == ome_i) %>%
+        pull(featureName2)
+
+      lapply(seq_len(num_clusters), function(cluster_i) {
+        res <- muscle_ora(
+          input = cluster_list[[cluster_i]],
+          background = background,
+          database = index_list[[ome_i]]
+        )
+        res$cluster_num <- cluster_i
+        res$adj_p_value <- p.adjust(res$p_value, method = "BH")
+        res
+      }) %>%
+        bind_rows() %>%
+        mutate(ome = ome_i)
+    }) %>%
+      bind_rows() %>%
+      mutate(sex = sex_i)
+  }) %>%
+    bind_rows()
+}
+
+# Run a generic gene set test for each sex × ome combination.
+# gst_fn(membership_mat, gene_sets) receives:
+#   membership_mat: features × clusters numeric matrix (rownames = featureName2)
+#   gene_sets:      index_list[[ome_i]]
+# It should return a data frame; `ome` and `sex` columns are added automatically.
+run_fcm_gst <- function(eset, eset_list, FCM, index_list, gst_fn) {
+  lapply(c("Female", "Male"), function(sex_i) {
+    cl <- FCM[[sex_i]]
+    eset_i <- eset_list[[sex_i]]
+
+    lapply(unique(fData(eset)[["ome"]]), function(ome_i) {
+      keep <- fData(eset_i)[["ome"]] == ome_i
+      membership_mat <- cl$membership[keep, ]
+      rownames(membership_mat) <- fData(eset_i)[["featureName2"]][keep]
+
+      gst_fn(membership_mat, index_list[[ome_i]]) %>%
+        mutate(ome = ome_i)
+    }) %>%
+      bind_rows() %>%
+      mutate(sex = sex_i)
+  }) %>%
+    bind_rows()
+}

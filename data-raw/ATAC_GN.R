@@ -83,6 +83,7 @@ ATAC_GN <- ExpressionSet(
   phenoData = phenoData
 )
 
+
 # dim(ATAC_GN) # 856947 features, 50 samples
 
 # counts <- dge_gn$counts

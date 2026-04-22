@@ -115,7 +115,8 @@ run_mofa_enrichment = function(mofa_trained, view, feature_sets,
 #' @param png_path Path for PDF export (despite the name, saves as PDF at 600
 #'   dpi). Set to NA to skip export (default).
 plot_enrichment_faceted = function(enrichment_list, factor, max_pathways = 8,
-                                   padj_threshold = 0.05, png_path = NA) {
+                                   padj_threshold = 0.05, png_path = NA,
+                                   width = 16) {
   factor_col = paste0("Factor", factor)
 
   shorten_name = function(x, cap = 25) {
@@ -169,7 +170,7 @@ plot_enrichment_faceted = function(enrichment_list, factor, max_pathways = 8,
       name=paste0("padj < ", padj_threshold)
     ) +
     ggplot2::labs(
-      title=paste0("Factor ", factor, " enrichment across all omes"),
+      title=paste0("Factor ", factor, " enrichments"),
       x=expression(-log[10](padj) ~ "[pos = up-weighted, neg = down-weighted]"),
       y=NULL
     ) +
@@ -181,7 +182,7 @@ plot_enrichment_faceted = function(enrichment_list, factor, max_pathways = 8,
 
   if (!is.na(png_path)) {
     out_path = sub("\\.(png|pdf)$", ".png", png_path, ignore.case = TRUE)
-    ggplot2::ggsave(out_path, plot = p, dpi = 600, width = 16, height = 4, units = "in")
+    ggplot2::ggsave(out_path, plot = p, dpi = 600, width = width, height = 4, units = "in")
     cat("Saved:", out_path, "\n")
   }
 
@@ -303,20 +304,23 @@ plot_feature_weights = function(mofa_trained, factors = 1:3, views = NULL,
                         linewidth = 0.3) +
     ggplot2::facet_grid(view ~ factor_label, scales = "free_y", space = "free_y") +
     ggplot2::scale_color_manual(values = view_colors, guide = "none") +
-    ggplot2::scale_y_discrete(labels = function(x) sub(".*__", "", x)) +
+    ggplot2::scale_y_discrete(labels = function(x) {
+      lbl <- sub(".*__", "", x)
+      ifelse(nchar(lbl) > 18, paste0(substr(lbl, 1, 18), "..."), lbl)
+    }) +
     ggplot2::labs(
       title = "Top feature weights per factor",
       x = "Weight",
       y = NULL
     ) +
-    ggplot2::theme_bw(base_size = 14) +
+    ggplot2::theme_bw(base_size = 18) +
     ggplot2::theme(
-      strip.text.x = ggplot2::element_text(face = "bold", size = 14),
-      strip.text.y = ggplot2::element_text(face = "bold", angle = 0, size = 14),
-      axis.text.y  = ggplot2::element_text(size = 13),
-      axis.text.x  = ggplot2::element_text(size = 12),
-      axis.title.x = ggplot2::element_text(size = 13),
-      plot.title   = ggplot2::element_text(size = 15, face = "bold"),
+      strip.text.x = ggplot2::element_text(face = "bold", size = 18),
+      strip.text.y = ggplot2::element_text(face = "bold", angle = 0, size = 18),
+      axis.text.y  = ggplot2::element_text(size = 16),
+      axis.text.x  = ggplot2::element_text(size = 16),
+      axis.title.x = ggplot2::element_text(size = 17),
+      plot.title   = ggplot2::element_text(size = 19, face = "bold"),
       panel.grid.major.y = ggplot2::element_blank()
     )
 
@@ -324,7 +328,7 @@ plot_feature_weights = function(mofa_trained, factors = 1:3, views = NULL,
     n_cols = length(factors)
     n_rows = length(views)
     ggplot2::ggsave(png_path, plot = p, dpi = 600,
-                    width = 14, height = 1.5 + 0.25 * n_features * n_rows,
+                    width = 10, height = 1.5 + 0.2 * n_features * n_rows,
                     units = "in")
     cat("Saved:", png_path, "\n")
     invisible(p)
@@ -432,7 +436,7 @@ make_mofa_enrichment_heatmap = function(enrichment, view_name, ome_cols, col_fun
     rect_gp=grid::gpar(fill=NA, col="grey85"),
     show_column_names=TRUE,
     column_names_rot=0,
-    column_names_gp=grid::gpar(just="center", fontsize=9),
+    column_names_gp=grid::gpar(just="left", fontsize=9),
     column_names_side="top",
     show_row_names=TRUE,
     row_names_side="right",
@@ -475,6 +479,7 @@ get_mofa_da_df = function(mofa_trained,
   weights = MOFA2::get_weights(mofa_trained, views=view, factors = factor_num, as.data.frame=TRUE) %>%
     dplyr::arrange(dplyr::desc(abs(value))) %>%
     dplyr::slice_head(n=n) %>%
+    dplyr::arrange(dplyr::desc(value)) %>%
     dplyr::select(mofa_feature=feature, weight=value)
 
   if (!is.null(gene_map)) {
@@ -506,45 +511,221 @@ get_mofa_da_df = function(mofa_trained,
 }
 
 
-#' Combined heatmap of top-weighted MOFA features across multiple views
+#' Heatmap of top MOFA features using z-scored normalized input data
+#'
+#' For each view, extracts the top \code{n} features by absolute MOFA weight,
+#' pulls the normalized input data stored in the MOFA object via
+#' \code{get_data()}, z-scores each feature across all samples, then averages
+#' z-scores within each sex x timepoint group. Columns are sex x timepoint
+#' groups; rows are features colored by view.
+#'
+#' @param mofa_trained Trained MOFA2 object.
+#' @param factor_num Integer factor index (e.g. 1 for Factor1).
+#' @param views Character vector of view names to include. NULL (default) uses
+#'   all views.
+#' @param n Number of top features per view (default 15).
+#' @param scale Scalar multiplier for font sizes and cell dimensions (default 1).
+#'
+#' @return A \code{ComplexHeatmap::Heatmap} object, or NULL (invisibly) when no
+#'   view yields matching features.
+mofa_feature_heatmap_zscore = function(mofa_trained,
+                                factor_num,
+                                views = NULL,
+                                n = 15,
+                                scale = 1) {
+  factor_label = paste0("Factor", factor_num)
+  all_views = MOFA2::views_names(mofa_trained)
+  if (is.null(views)) views = all_views
+  views = intersect(views, all_views)
+
+  # View colours matching the palette in plot_feature_weights
+  default_view_cols = c(
+    Transcriptomics   = "#4575b4",
+    Proteomics        = "#d73027",
+    Phosphoproteomics = "#f46d43",
+    Redox             = "#74add1",
+    Metabolomics      = "#1a9850"
+  )
+
+  # Group order: Female then Male, within sex by timepoint
+  tp_levels = c("SED", "1W", "2W", "4W", "8W")
+  meta = MOFA2::samples_metadata(mofa_trained) %>%
+    dplyr::mutate(timepoint = factor(timepoint, levels = tp_levels))
+
+  # One column per sex x timepoint group, in order
+  group_order = meta %>%
+    dplyr::distinct(sex, timepoint) %>%
+    dplyr::arrange(sex, timepoint)
+
+  # All weights for this factor across requested views
+  weights_df = MOFA2::get_weights(mofa_trained, views = views,
+                                  factors = factor_label, as.data.frame = TRUE)
+
+  mofa_data = MOFA2::get_data(mofa_trained)
+  expr_mats = list()
+  view_labels = c()
+
+  for (v in views) {
+    top_features = weights_df %>%
+      dplyr::filter(view == v) %>%
+      dplyr::arrange(dplyr::desc(abs(value))) %>%
+      dplyr::slice_head(n = n) %>%
+      #so first pull by abs value -> then pull and show positive first.
+      dplyr::arrange(dplyr::desc(value)) %>%
+      dplyr::pull(feature)
+
+    if (length(top_features) == 0) next
+
+    view_mat = mofa_data[[v]][[1]]  # feature x sample matrix
+    colnames(view_mat) = gsub("^group1\\.", "", colnames(view_mat))
+
+    feat_present = intersect(top_features, rownames(view_mat))
+
+    if (length(feat_present) == 0) {
+      message("No matching features for ", v, " Factor ", factor_num, " - skipping")
+      next
+    }
+
+    # Z-score each feature across all samples first
+    mat = view_mat[feat_present, meta$sample, drop = FALSE]
+    mat = t(scale(t(mat)))
+
+    # Average z-scores within each sex x timepoint group
+    avg_mat = do.call(cbind, lapply(seq_len(nrow(group_order)), function(i) {
+      grp_samples = meta$sample[meta$sex == group_order$sex[i] &
+                                  meta$timepoint == group_order$timepoint[i]]
+      grp_samples = intersect(grp_samples, colnames(mat))
+      rowMeans(mat[, grp_samples, drop = FALSE], na.rm = TRUE)
+    }))
+    colnames(avg_mat) = paste(group_order$sex, group_order$timepoint, sep = ".")
+
+    # Strip MOFA's _VIEWNAME suffix added to duplicated features
+    rownames(avg_mat) = sub(paste0("_", toupper(v), "$"), "", rownames(avg_mat))
+
+    expr_mats[[v]] = avg_mat
+    view_labels = c(view_labels, rep(v, nrow(avg_mat)))
+  }
+
+  if (length(expr_mats) == 0) return(invisible(NULL))
+
+  combined = do.call(rbind, expr_mats)
+
+  # Column annotation: one row per sex x timepoint group
+  ann_df = group_order %>%
+    dplyr::rename(Sex = sex, Timepoint = timepoint)
+
+  top_ann = ComplexHeatmap::HeatmapAnnotation(
+    df = ann_df,
+    border = TRUE,
+    gp = grid::gpar(col = "black"),
+    gap = grid::unit(0, "pt"),
+    which = "column",
+    height = grid::unit(8 * 2, "pt") * scale,
+    col = list(
+      Sex = c(Female = MotrpacBicQC::sex_cols[["Female"]],
+              Male   = MotrpacBicQC::sex_cols[["Male"]]),
+      Timepoint = c("SED" = "white", "1W" = "#F7FCB9", "2W" = "#ADDD8E",
+                    "4W" = "#238443", "8W" = "#002612")
+    ),
+    annotation_name_gp = grid::gpar(fontsize = 6 * scale),
+    annotation_legend_param = list(
+      border = "black",
+      labels_gp = grid::gpar(fontsize = 6.5 * scale),
+      title_gp = grid::gpar(fontsize = 7 * scale, fontface = "bold")
+    )
+  )
+
+  # Left annotation: view name per row
+  present_views = unique(view_labels)
+  view_cols = default_view_cols[intersect(names(default_view_cols), present_views)]
+  missing_views = setdiff(present_views, names(view_cols))
+  if (length(missing_views) > 0) {
+    extra = scales::hue_pal()(length(missing_views))
+    names(extra) = missing_views
+    view_cols = c(view_cols, extra)
+  }
+
+  left_ann = ComplexHeatmap::rowAnnotation(
+    View = ComplexHeatmap::anno_simple(view_labels, col = view_cols, border = TRUE),
+    show_annotation_name = FALSE,
+    width = grid::unit(4, "mm"),
+    annotation_legend_param = list(
+      title = "View",
+      border = "black",
+      labels_gp = grid::gpar(fontsize = 5.5 * scale),
+      title_gp = grid::gpar(fontsize = 7 * scale, fontface = "bold")
+    )
+  )
+
+  max_abs = max(abs(combined), na.rm = TRUE)
+
+  ComplexHeatmap::Heatmap(
+    matrix = combined,
+    col = circlize::colorRamp2(c(-max_abs, 0, max_abs), c("#3366ff", "white", "darkred")),
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    show_column_names = FALSE,
+    top_annotation = top_ann,
+    left_annotation = left_ann,
+    border = "black",
+    row_names_gp = grid::gpar(fontsize = 6 * scale),
+    height = nrow(combined) * grid::unit(6.5, "pt") * scale,
+    width = ncol(combined) * grid::unit(5.5, "pt") * scale,
+    column_split = ann_df$Sex,
+    row_split = factor(view_labels, levels = names(expr_mats)),
+    na_col = "grey90",
+    heatmap_legend_param = list(
+      title = "Scaled Expression",
+      at = c(-round(max_abs), 0, round(max_abs)),
+      title_gp = grid::gpar(fontsize = 7 * scale, fontface = "bold"),
+      labels_gp = grid::gpar(fontsize = 6 * scale),
+      legend_height = 5 * scale * grid::unit(8, "pt"),
+      border = "black"
+    )
+  )
+}
+
+
+#' Heatmap of top MOFA features using differential analysis z-scores
 #'
 #' For each view in \code{view_da}, extracts the top \code{n} features by
-#' absolute weight, maps them to gene symbols, and builds z-score / FDR matrices
-#' using the same logic as \code{feature_heatmap}.  All views are row-bound into
-#' a single \code{ComplexHeatmap::Heatmap} with a left annotation bar showing
-#' the view identity and row splitting by view.
+#' absolute MOFA weight, maps them to DA results, and builds a heatmap where
+#' columns are sex x timepoint contrasts (trained vs. sedentary) and cell color
+#' encodes the limma z-score. Asterisks mark features with adj.P.Val <
+#' \code{padj_cutoff}.
 #'
 #' @param mofa_trained Trained MOFA2 object.
 #' @param factor_num Integer factor index (e.g. 1 for Factor1).
 #' @param view_da Named list of DA result data frames (one per view), each with
 #'   columns \code{gene_symbol}, \code{contrast}, \code{z}, \code{adj.P.Val}.
 #' @param view_gene_map Named list of optional mapping functions
-#'   \code{function(features) -> gene_symbols}, one per view.  NULL entries use
-#'   case-insensitive direct matching against \code{gene_symbol}.
+#'   \code{function(features) -> feature_ids}, one per view. NULL entries use
+#'   direct matching.
 #' @param n Number of top features per view (default 15).
 #' @param scale Scalar multiplier for font sizes and cell dimensions (default 1).
 #' @param padj_cutoff Significance threshold for asterisk annotation (default 0.05).
+#' @param view_feature_col Named list specifying which fData column to match
+#'   against MOFA feature names per view (default "featureName").
 #'
 #' @return A \code{ComplexHeatmap::Heatmap} object, or NULL (invisibly) when no
 #'   view yields matching features.
-mofa_feature_heatmap = function(mofa_trained,
-                                factor_num,
-                                view_da,
-                                view_gene_map=NULL,
-                                n=15,
-                                scale=1,
-                                padj_cutoff=0.05,
-                                view_feature_col=NULL) {
+mofa_feature_heatmap_da = function(mofa_trained,
+                                   factor_num,
+                                   view_da,
+                                   view_gene_map = NULL,
+                                   n = 15,
+                                   scale = 1,
+                                   padj_cutoff = 0.05,
+                                   view_feature_col = NULL) {
   factor_label = paste0("Factor", factor_num)
   expected_groups = c("1W", "2W", "4W", "8W")
 
-  # View colours matching the palette in plot_feature_weights
   default_view_cols = c(
-    Transcriptomics="#4575b4",
-    Proteomics="#d73027",
-    Phosphoproteomics="#f46d43",
-    Redox="#74add1",
-    Metabolomics="#1a9850"
+    Transcriptomics   = "#4575b4",
+    Proteomics        = "#d73027",
+    Phosphoproteomics = "#f46d43",
+    Redox             = "#74add1",
+    Metabolomics      = "#1a9850"
   )
 
   z_mats = list()
@@ -555,130 +736,121 @@ mofa_feature_heatmap = function(mofa_trained,
     gene_map = if (!is.null(view_gene_map)) view_gene_map[[v]] else NULL
     feat_col = if (!is.null(view_feature_col[[v]])) view_feature_col[[v]] else "featureName"
 
-    da_df = get_mofa_da_df(mofa_trained,
-                           factor_num,
-                           v,
-                           view_da[[v]],
-                           n = n,
-                           gene_map = gene_map,
-                           feat_col = feat_col)
+    da_df = get_mofa_da_df(mofa_trained, factor_num, v, view_da[[v]],
+                           n = n, gene_map = gene_map, feat_col = feat_col)
 
     if (all(is.na(da_df$z))) {
       message("No matching features for ", v, " Factor ", factor_num, " - skipping")
       next
     }
 
-    # Parse sex/group from contrast and pivot to feature x sex.group matrices.
-    # mofa_feature order from get_mofa_da_df is already sorted by weight.
     make_mat = function(value_col) {
       da_df %>%
         dplyr::filter(!is.na(contrast)) %>%
         dplyr::mutate(
-          sex = sub("^(.)_.*", "\\1", contrast),
+          sex   = sub("^(.)_.*", "\\1", contrast),
           group = sub("^._(\\S+).*", "\\1", contrast)
         ) %>%
-        distinct(mofa_feature, sex, group, .keep_all = TRUE) %>%
+        dplyr::distinct(mofa_feature, sex, group, .keep_all = TRUE) %>%
         droplevels() %>%
-        tidyr::pivot_wider(id_cols=mofa_feature,
-                           names_from=c(sex, group),
-                           names_sep=".",
-                           values_from=!!value_col) %>%
+        tidyr::pivot_wider(id_cols = mofa_feature,
+                           names_from = c(sex, group),
+                           names_sep = ".",
+                           values_from = !!value_col) %>%
         tibble::column_to_rownames("mofa_feature") %>%
         as.matrix()
     }
 
-    z_mats[[v]] = make_mat("z")
+    z_mats[[v]]   = make_mat("z")
     fdr_mats[[v]] = make_mat("adj.P.Val")
     view_labels = c(view_labels, rep(v, nrow(z_mats[[v]])))
   }
 
   if (length(z_mats) == 0) return(invisible(NULL))
 
-  z_combined = do.call(rbind, z_mats)
+  z_combined   = do.call(rbind, z_mats)
   fdr_combined = do.call(rbind, fdr_mats)
 
-  # Top annotation: Sex + Timepoint from column names ("F.1W", "M.1W", ...)
   ann_df = strsplit(colnames(z_combined), "\\.") %>%
     do.call(rbind, .) %>%
-    as.data.frame(stringsAsFactors=FALSE) %>%
+    as.data.frame(stringsAsFactors = FALSE) %>%
     setNames(c("sex", "group")) %>%
     dplyr::mutate(
-      Sex=ifelse(sex == "F", "Female", "Male"),
-      Timepoint=factor(group, levels=expected_groups)
+      Sex      = ifelse(sex == "F", "Female", "Male"),
+      Timepoint = factor(group, levels = expected_groups)
     )
 
   top_ann = ComplexHeatmap::HeatmapAnnotation(
-    df=ann_df %>% dplyr::select(Sex, Timepoint),
-    border=TRUE,
-    gp=grid::gpar(col="black"),
-    gap=grid::unit(0, "pt"),
-    which="column",
-    height=grid::unit(8 * 2, "pt") * scale,
-    col=list(
-      Sex=c(Female=MotrpacBicQC::sex_cols[["Female"]],
-            Male=MotrpacBicQC::sex_cols[["Male"]]),
-      Timepoint=c("1W"="#F7FCB9", "2W"="#ADDD8E", "4W"="#238443", "8W"="#002612")
+    df = ann_df %>% dplyr::select(Sex, Timepoint),
+    border = TRUE,
+    gp = grid::gpar(col = "black"),
+    gap = grid::unit(0, "pt"),
+    which = "column",
+    height = grid::unit(8 * 2, "pt") * scale,
+    col = list(
+      Sex = c(Female = MotrpacBicQC::sex_cols[["Female"]],
+              Male   = MotrpacBicQC::sex_cols[["Male"]]),
+      Timepoint = c("1W" = "#F7FCB9", "2W" = "#ADDD8E", "4W" = "#238443", "8W" = "#002612")
     ),
-    annotation_name_gp=grid::gpar(fontsize=7 * scale),
-    annotation_legend_param=list(
-      border="black",
-      labels_gp=grid::gpar(fontsize=6.5 * scale),
-      title_gp=grid::gpar(fontsize=7 * scale, fontface="bold")
+    annotation_name_gp = grid::gpar(fontsize = 7 * scale),
+    annotation_legend_param = list(
+      border = "black",
+      labels_gp = grid::gpar(fontsize = 6.5 * scale),
+      title_gp  = grid::gpar(fontsize = 7 * scale, fontface = "bold")
     )
   )
 
-  # Left annotation: view name per row
   present_views = unique(view_labels)
   view_cols = default_view_cols[intersect(names(default_view_cols), present_views)]
-  missing = setdiff(present_views, names(view_cols))
-  if (length(missing) > 0) {
-    extra = scales::hue_pal()(length(missing))
-    names(extra) = missing
+  missing_views = setdiff(present_views, names(view_cols))
+  if (length(missing_views) > 0) {
+    extra = scales::hue_pal()(length(missing_views))
+    names(extra) = missing_views
     view_cols = c(view_cols, extra)
   }
 
   left_ann = ComplexHeatmap::rowAnnotation(
-    View=ComplexHeatmap::anno_simple(view_labels, col=view_cols, border=TRUE),
-    show_annotation_name=FALSE,
-    width=grid::unit(4, "mm"),
-    annotation_legend_param=list(
-      title="View",
-      border="black",
-      labels_gp=grid::gpar(fontsize=5.5 * scale),
-      title_gp=grid::gpar(fontsize=7 * scale, fontface="bold")
+    View = ComplexHeatmap::anno_simple(view_labels, col = view_cols, border = TRUE),
+    show_annotation_name = FALSE,
+    width = grid::unit(4, "mm"),
+    annotation_legend_param = list(
+      title = "View",
+      border = "black",
+      labels_gp = grid::gpar(fontsize = 5.5 * scale),
+      title_gp  = grid::gpar(fontsize = 7 * scale, fontface = "bold")
     )
   )
 
-  z_range = range(z_combined, na.rm=TRUE)
-  max_abs = max(abs(z_range))
+  z_range = range(z_combined, na.rm = TRUE)
+  max_abs  = max(abs(z_range))
 
   ComplexHeatmap::Heatmap(
-    matrix=z_combined,
-    col=circlize::colorRamp2(c(-max_abs, 0, max_abs), c("#3366ff", "white", "darkred")),
-    cluster_columns=FALSE,
-    cluster_rows=FALSE,
-    show_column_names=FALSE,
-    top_annotation=top_ann,
-    left_annotation=left_ann,
-    border="black",
-    row_names_gp=grid::gpar(fontsize=6 * scale),
-    height=nrow(z_combined) * grid::unit(6.5, "pt") * scale,
-    width=ncol(z_combined) * grid::unit(5.5, "pt") * scale,
-    column_split=ann_df$Sex,
-    row_split=factor(view_labels, levels=names(z_mats)),
-    heatmap_legend_param=list(
-      title="Z-Score",
-      at=c(-round(max_abs), 0, round(max_abs)),
-      title_gp=grid::gpar(fontsize=7 * scale, fontface="bold"),
-      labels_gp=grid::gpar(fontsize=6 * scale),
-      legend_height=5 * scale * grid::unit(8, "pt"),
-      border="black"
+    matrix = z_combined,
+    col = circlize::colorRamp2(c(-max_abs, 0, max_abs), c("#3366ff", "white", "darkred")),
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    show_column_names = FALSE,
+    top_annotation = top_ann,
+    left_annotation = left_ann,
+    border = "black",
+    row_names_gp = grid::gpar(fontsize = 6 * scale),
+    height = nrow(z_combined) * grid::unit(6.5, "pt") * scale,
+    width  = ncol(z_combined) * grid::unit(5.5, "pt") * scale,
+    column_split = ann_df$Sex,
+    row_split = factor(view_labels, levels = names(z_mats)),
+    heatmap_legend_param = list(
+      title = "DA Z-Score Relative\nto Sex-Matched Control",
+      at = c(-round(max_abs), 0, round(max_abs)),
+      title_gp  = grid::gpar(fontsize = 7 * scale, fontface = "bold"),
+      labels_gp = grid::gpar(fontsize = 6 * scale),
+      legend_height = 5 * scale * grid::unit(8, "pt"),
+      border = "black"
     ),
-    cell_fun=function(j, i, x, y, width, height, fill) {
-      grid::grid.rect(x=x, y=y, width=width, height=height,
-                      gp=grid::gpar(col="#555555", fill=NA))
+    cell_fun = function(j, i, x, y, width, height, fill) {
+      grid::grid.rect(x = x, y = y, width = width, height = height,
+                      gp = grid::gpar(col = "#555555", fill = NA))
       if (!is.na(fdr_combined[i, j]) && fdr_combined[i, j] < padj_cutoff) {
-        gb = grid::textGrob("*")
+        gb   = grid::textGrob("*")
         gb_w = grid::convertWidth(grid::grobWidth(gb), "mm")
         gb_h = grid::convertHeight(grid::grobHeight(gb), "mm")
         grid::grid.text("*", x, y - gb_h * 0.5 + gb_w * 0.4)
