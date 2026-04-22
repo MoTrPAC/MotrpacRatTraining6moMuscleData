@@ -20,10 +20,16 @@ atac_results = training_da(
 )
 
 atac_results = atac_results %>%
+  filter(grepl("chr", feature_ID)) %>%
   mutate(adj_p_value = p.adjust(p_value, method = "BH"))
 
 atac_sig = atac_results %>%
   filter(adj_p_value < 0.1)
+#792
+
+# oh yea fyi for the 'removed samples' column. There were 2 outliers in RNA but
+# these are not included in this table because they were trimmed prior to loading.
+# It shouldn't affect anything in terms of DA results here but just for documentation sake I figure I'd mention it
 
 trnscrpt_results = training_da(
   eset = transcript_data,
@@ -38,7 +44,7 @@ trnscrpt_results = trnscrpt_results %>%
 
 trnscrpt_sig = trnscrpt_results %>%
   filter(adj_p_value < 0.1)
-
+#586
 
 saveRDS(atac_sig, file = file.path(here(),
                                    "Other_Figures",

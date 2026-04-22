@@ -1,6 +1,8 @@
 library(MotrpacRatTraining6moMuscleData)
 library(dplyr)
 library(tidyr)
+library(here)
+library(ggplot2)
 
 
 DA_objects = list(
@@ -52,6 +54,7 @@ p = ggplot(
     sex ~ ome,
     scales = "free_x"
   ) +
+  scale_x_continuous(n.breaks = 3) +
   scale_fill_manual(
     name = "Skeletal Muscle",
     values = c(GN = "#8B0000", VL = "grey60"),
@@ -79,7 +82,7 @@ pdf(file = file.path(
   here(),
   "plots",
   "S1C.pdf"),
-  width = 8,
+  width = 10,
   height = 6
 )
 print(p)
