@@ -8,7 +8,10 @@ DA_objects = list(
   METAB_VL = METAB_VL_DA[["trained_vs_SED"]],
   PROT_GN = PROT_GN_DA[["trained_vs_SED"]],
   TRNSCRPT_GN = TRNSCRPT_GN_DA[["trained_vs_SED"]],
-  TRNSCRPT_VL = TRNSCRPT_VL_DA[["trained_vs_SED"]]
+  TRNSCRPT_VL = TRNSCRPT_VL_DA[["trained_vs_SED"]],
+  ACETYL_GN = ACETYL_GN_NORM_DA[["trained_vs_SED"]],
+  PHOSPHO_GN = PHOSPHO_GN_NORM_DA[["trained_vs_SED"]],
+  REDOX_GN = REDOX_GN_NORM_DA[["trained_vs_SED"]]
 )
 
 count_df =  lapply(names(DA_objects), function(obj) {
@@ -25,7 +28,7 @@ count_df =  lapply(names(DA_objects), function(obj) {
     sex = ifelse(grepl("^M", contrast), "Male", "Female"),
     comparison = gsub("M_|F_", "", contrast),
     ome = factor(ome,
-                 levels = c("PROT", "TRNSCRPT", "METAB"))
+                 levels = c("PROT", "TRNSCRPT", "METAB", "ACETYL", "PHOSPHO", "REDOX"))
   ) %>%
   mutate(comparison = factor(comparison,
                              levels = c("8W - SED",
@@ -63,7 +66,11 @@ p = ggplot(
   theme(
     strip.background = element_rect(fill = "grey90", colour = NA),
     panel.grid.major.y = element_blank(),
-    panel.grid.minor = element_blank()
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(colour = "black"),
+    legend.key.size = unit(0.4, "cm"),
+    legend.text = element_text(size = 8),
+    legend.margin = margin(0, 0, 0, 0)
   )
 
 
@@ -71,9 +78,9 @@ p = ggplot(
 pdf(file = file.path(
   here(),
   "plots",
-  "S1B.pdf"),
+  "S1C.pdf"),
   width = 8,
-  height = 8
+  height = 6
 )
 print(p)
 dev.off()

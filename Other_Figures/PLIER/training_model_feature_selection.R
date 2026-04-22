@@ -1,0 +1,52 @@
+library(MotrpacRatTraining6mo)
+library(here)
+library(Biobase)
+library(dplyr)
+
+
+atac_covariates = c("Sample_batch", "peak_enrich.frac_reads_in_peaks.macs2.frip")
+trnscrpt_covariates = c("pct_globin", "rin", "pct_umi_dup", "median_5_3_bias")
+
+# ATAC GN data is too large for normal input so it's loaded via load_atac_data()
+atac_data = load_atac_data()
+transcript_data = MotrpacRatTraining6moMuscleData::TRNSCRPT_GN
+
+atac_results = training_da(
+  eset = atac_data,
+  tissue = "SKM-GN",
+  assay = "ATAC",
+  assay_code = "epigen-atac-seq",
+  covariates = atac_covariates
+)
+
+atac_results = atac_results %>%
+  mutate(adj_p_value = p.adjust(p_value, method = "BH"))
+
+atac_sig = atac_results %>%
+  filter(adj_p_value < 0.1)
+
+trnscrpt_results = training_da(
+  eset = transcript_data,
+  tissue = "SKM-GN",
+  assay = "TRNSCRPT",
+  assay_code = "transcript-rna-seq",
+  covariates = trnscrpt_covariates
+)
+
+trnscrpt_results = trnscrpt_results %>%
+  mutate(adj_p_value = p.adjust(p_value, method = "BH"))
+
+trnscrpt_sig = trnscrpt_results %>%
+  filter(adj_p_value < 0.1)
+
+
+saveRDS(atac_sig, file = file.path(here(),
+                                   "Other_Figures",
+                                   "PLIER",
+                                   "atac_GN_sig_peaks.RDS")
+)
+saveRDS(trnscrpt_sig, file = file.path(here(),
+                                       "Other_Figures",
+                                       "PLIER",
+                                       "trsncrpt_GN_sig_features.RDS")
+)
