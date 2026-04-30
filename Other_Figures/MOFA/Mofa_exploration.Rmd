@@ -571,11 +571,11 @@ col_fun_enrich = circlize::colorRamp2(
 )
 
 ome_cols_mofa = c(
-  Transcriptomics="#4575b4",
-  Proteomics="#d73027",
-  Phosphoproteomics="#f46d43",
+  Transcriptomics="#377EB8",
+  Proteomics="#4DAF4A",
+  Phosphoproteomics="#FF7F00",
   Redox="#74add1",
-  Metabolomics="#1a9850"
+  Metabolomics="#E41A1C"
 )
 
 color_lg = ComplexHeatmap::Legend(

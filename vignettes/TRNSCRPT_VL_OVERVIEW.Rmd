@@ -70,18 +70,22 @@ pca_df = pca_df %>%
 ```
 
 ```{r, fig.width=10, fig.height=8}
-ggplot(pca_df, aes(x = PC1, y = PC2, color = timepoint, fill = timepoint, shape = sex)) +
-  geom_point(size = 4, stroke = 1.5) +
-  scale_color_manual(values = c("control" = "grey", "1W" = "#F7FCB9", "2W" = "#ADDD8E", "4W" = "#238443", "8W" = "#002612")) +
-  scale_fill_manual(values = c("control" = "grey", "1W" = "#F7FCB9", "2W" = "#ADDD8E", "4W" = "#238443", "8W" = "#002612")) +
+ggplot(pca_df, aes(x = PC1, y = PC2, color = sex, fill = timepoint, shape = sex)) +
+  geom_point(size = 6, stroke = 1) +
+  scale_color_manual(values = MotrpacRatTraining6moData::SEX_COLORS) +
+  scale_fill_manual(values = c("control" = "white", "1W" = "#F7FCB9", "2W" = "#ADDD8E", "4W" = "#238443", "8W" = "#002612")) +
   scale_shape_manual(values = c("Female" = 21, "Male" = 24)) +
   labs(
     x = sprintf("PC1 (%.1f%%)", var_exp[1]),
     y = sprintf("PC2 (%.1f%%)", var_exp[2]),
-    color = "Group",
+    color = "Sex",
     fill = "Group",
     shape = "Sex",
     title = "TRNSCRPT_VL PCA"
+  ) +
+  guides(
+    fill = guide_legend(override.aes = list(color = "grey30", shape = 21, size = 4)),
+    color = guide_legend(override.aes = list(fill = NA, size = 4))
   ) +
   theme_bw()
 # ggsave(filename = file.path(here(), "plots", "pcas", "trnscrpt_vl.pdf"))

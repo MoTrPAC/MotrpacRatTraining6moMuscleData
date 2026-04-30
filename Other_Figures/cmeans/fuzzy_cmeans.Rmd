@@ -51,8 +51,8 @@ source(here::here("Other_Figures", "cmeans", "cmeans_helpers.R"))
 
 ```{r combine-DA-results}
 combined_DA <- list(
-  "PROT_GN" = PROT_GN_DA,
   "TRNSCRPT_GN" = TRNSCRPT_GN_DA,
+  "PROT_GN" = PROT_GN_DA,
   "METAB_GN" = METAB_GN_DA
 ) %>% 
   lapply(function(x) {
@@ -253,7 +253,7 @@ head(FCM_CAMERA_SEX_STRATIFIED)
 
 Ranks features within each cluster by membership probability and tests whether gene set members are enriched at the top of the ranking.
 
-```{r fgsea}
+```{r fgsea, eval = FALSE}
 FCM_FGSEA_SEX_STRATIFIED <- run_fcm_gst(eset, eset_list, FCM, index_list,
   function(membership_mat, gene_sets) {
     lapply(colnames(membership_mat), function(cluster_i) {
@@ -308,7 +308,7 @@ head(FCM_FGSEA_SEX_STRATIFIED)
 All clusters (supplement version):
 
 ```{r camera all enrichment-bubble-heatmaps, eval=save_plots}
-for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
+for (ome_i in names(ome_cols)) {
   for (sex_i in c("Female", "Male")) {
     x <- FCM_CAMERA_SEX_STRATIFIED %>%
       filter(ome==ome_i, sex==sex_i)
@@ -380,7 +380,7 @@ camera_res[["downregulation"]] = CAMERA_filtered_down
 
 ```{r}
 cell_size = unit(6, "mm")
-ome_cols = c(METAB_GN = "darkgreen", PROT_GN = "steelblue", TRNSCRPT_GN = "orange")
+ome_cols = c(TRNSCRPT_GN = "#377EB8", PROT_GN = "#4DAF4A", METAB_GN = "#E41A1C")
 ome_lg = ComplexHeatmap::Legend(
   title = "Omics enrichments",
   at = names(ome_cols),
@@ -405,7 +405,7 @@ sex_lg = ComplexHeatmap::Legend(
 for(direction in names(camera_res)){
   camera_select = camera_res[[direction]]
   camera_heatmaps = list()
-  for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
+  for (ome_i in names(ome_cols)) {
     x = camera_select %>%
       filter(ome == ome_i)
     # Select the top n terms by cluster
@@ -425,7 +425,7 @@ for(direction in names(camera_res)){
     col_fun = make_col_fun(statistic_mat)
     color_lg = make_color_legend(col_fun)
 
-    is_first_ome = ome_i == unique(FCM_CAMERA_SEX_STRATIFIED$ome)[1]
+    is_first_ome = ome_i == names(ome_cols)[1]
     camera_heatmaps[[ome_i]] = make_camera_heatmap(
       statistic_mat, padj_mat, col_fun,
       cell_size, sex_cols, ome_cols, ome_i, is_first_ome
@@ -454,7 +454,7 @@ for(direction in names(camera_res)){
 Now we repeat but with all clusters instead of just select ones, for a supplement
 ```{r}
 camera_heatmaps_supplement = list()
-for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
+for (ome_i in names(ome_cols)) {
   x = FCM_CAMERA_SEX_STRATIFIED %>%
     filter(ome == ome_i) %>%
     mutate(sex_cluster_pattern = interaction(sex, cluster_num))
@@ -475,7 +475,7 @@ for (ome_i in unique(FCM_CAMERA_SEX_STRATIFIED$ome)) {
   col_fun = make_col_fun(statistic_mat)
   color_lg = make_color_legend(col_fun)
 
-  is_first_ome = ome_i == unique(FCM_CAMERA_SEX_STRATIFIED$ome)[1]
+  is_first_ome = ome_i == names(ome_cols)[1]
   camera_heatmaps_supplement[[ome_i]] = make_camera_heatmap(
     statistic_mat, padj_mat, col_fun,
     cell_size, sex_cols, ome_cols, ome_i, is_first_ome

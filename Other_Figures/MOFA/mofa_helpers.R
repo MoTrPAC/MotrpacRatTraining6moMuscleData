@@ -279,11 +279,11 @@ plot_feature_weights = function(mofa_trained, factors = 1:3, views = NULL,
 
   if (is.null(view_colors)) {
     default_pal = c(
-      Transcriptomics   = "#4575b4",
-      Proteomics        = "#d73027",
-      Phosphoproteomics = "#f46d43",
+      Transcriptomics   = "#377EB8",
+      Proteomics        = "#4DAF4A",
+      Phosphoproteomics = "#FF7F00",
       Redox             = "#74add1",
-      Metabolomics      = "#1a9850"
+      Metabolomics      = "#E41A1C"
     )
     view_colors = default_pal[intersect(names(default_pal), views)]
     missing = setdiff(views, names(view_colors))
@@ -540,11 +540,11 @@ mofa_feature_heatmap_zscore = function(mofa_trained,
 
   # View colours matching the palette in plot_feature_weights
   default_view_cols = c(
-    Transcriptomics   = "#4575b4",
-    Proteomics        = "#d73027",
-    Phosphoproteomics = "#f46d43",
+    Transcriptomics   = "#377EB8",
+    Proteomics        = "#4DAF4A",
+    Phosphoproteomics = "#FF7F00",
     Redox             = "#74add1",
-    Metabolomics      = "#1a9850"
+    Metabolomics      = "#E41A1C"
   )
 
   # Group order: Female then Male, within sex by timepoint
@@ -721,11 +721,11 @@ mofa_feature_heatmap_da = function(mofa_trained,
   expected_groups = c("1W", "2W", "4W", "8W")
 
   default_view_cols = c(
-    Transcriptomics   = "#4575b4",
-    Proteomics        = "#d73027",
-    Phosphoproteomics = "#f46d43",
+    Transcriptomics   = "#377EB8",
+    Proteomics        = "#4DAF4A",
+    Phosphoproteomics = "#FF7F00",
     Redox             = "#74add1",
-    Metabolomics      = "#1a9850"
+    Metabolomics      = "#E41A1C"
   )
 
   z_mats = list()

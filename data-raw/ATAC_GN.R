@@ -90,12 +90,11 @@ ATAC_GN <- ExpressionSet(
 # lib.size <- getNormLibSizes(dge_gn)
 # y <- t(log2(t(counts + 0.5) / (lib.size + 1) * 1e+06))
 # y <- normalizeBetweenArrays(y, method = "none")
-#
+# #
 # logCPM <- y
 #
-# save(logCPM, phenoData,
-#      file = "~/Downloads/ATAC-GN_normalized_logCPM.RData",
-#      version = 3)
+# saveRDS(logCPM, file = "~/Downloads/ATAC-GN_normalized_logCPM.RDS")
+
 
 # Check for extreme outliers ----
 
