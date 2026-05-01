@@ -858,3 +858,64 @@ mofa_feature_heatmap_da = function(mofa_trained,
     }
   )
 }
+
+
+
+# Gene-level: most significant result per gene per contrast
+get_gene_df = function(da_list, genes) {
+  bind_rows(da_list) %>%
+    mutate(row_id = toupper(gene_symbol)) %>%
+    filter(!is.na(row_id), row_id %in% genes) %>%
+    group_by(row_id, contrast) %>%
+    slice_min(adj.P.Val, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    select(row_id, contrast, z, adj.P.Val)
+}
+
+# PTM site-level: match by gene name + position number in ptm_id.
+# Uses position number (e.g. "195" from "S195") to handle both uppercase
+# ("S195") and semicolon-prefixed (";195") ptm_id formats.
+get_ptm_df = function(da_list, fdata, sites) {
+  parsed = do.call(rbind, lapply(sites, function(s) {
+    data.frame(
+      gene = sub("_.*", "", s),
+      pos = gsub("[^0-9]", "", sub(".*_", "", s)),
+      row_id = s,
+      stringsAsFactors = FALSE
+    )
+  }))
+
+  fdata_df = fdata %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column("feature_id") %>%
+    mutate(gene_upper = toupper(gene_symbol))
+
+  fmap = do.call(rbind, lapply(seq_len(nrow(parsed)), function(i) {
+    pat = paste0("(^|[^0-9])", parsed$pos[i], "($|[^0-9])")
+    fdata_df %>%
+      filter(gene_upper == parsed$gene[i], grepl(pat, ptm_id)) %>%
+      mutate(row_id = parsed$row_id[i]) %>%
+      select(feature_id, row_id)
+  }))
+
+  if (is.null(fmap) || nrow(fmap) == 0) return(NULL)
+
+  bind_rows(da_list) %>%
+    inner_join(fmap, by = c("featureName" = "feature_id")) %>%
+    group_by(row_id, contrast) %>%
+    slice_min(adj.P.Val, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    select(row_id, contrast, z, adj.P.Val)
+}
+
+# Metabolite-level: match by metabolite_refmet (case-insensitive)
+get_metab_df = function(da_list, metabolites) {
+  target = toupper(metabolites)
+  bind_rows(da_list) %>%
+    mutate(row_id = toupper(metabolite_refmet)) %>%
+    filter(!is.na(row_id), row_id %in% target) %>%
+    group_by(row_id, contrast) %>%
+    slice_min(adj.P.Val, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    select(row_id, contrast, z, adj.P.Val)
+}

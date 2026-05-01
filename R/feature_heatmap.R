@@ -1,3 +1,32 @@
+#' Heatmap of differential analysis z-scores for selected features
+#'
+#' Builds a \code{ComplexHeatmap::Heatmap} showing limma z-scores across
+#' training timepoints (1W, 2W, 4W, 8W) and sexes (Female, Male) for a
+#' specified set of gene symbols. Columns are split by sex and annotated with
+#' sex and timepoint; significant cells (adj.P.Val < \code{padj_cutoff}) are
+#' marked with an asterisk. Features absent from \code{da_results} appear as
+#' \code{NaN}.
+#'
+#' @param interested_genes Character vector of gene symbols to display. Must
+#'   match the case of the \code{gene_symbol} column in \code{da_results}.
+#' @param da_results Data frame of differential analysis results, typically one
+#'   element of a \code{*_DA} list (e.g. \code{PROT_GN_DA$trained_vs_SED}).
+#'   Must contain columns \code{gene_symbol}, \code{contrast}, \code{z}, and
+#'   \code{adj.P.Val}. Contrasts must follow the \code{"<sex>_<timepoint>W ..."}
+#'   naming convention used by \code{limmaDEA()}.
+#' @param scale Numeric scaling factor applied uniformly to font sizes and cell
+#'   dimensions (default \code{1}).
+#' @param padj_cutoff Adjusted p-value threshold below which an asterisk is
+#'   drawn in a cell and, when \code{filter_nonsig = TRUE}, rows are retained
+#'   (default \code{0.05}).
+#' @param filter_nonsig Logical. When \code{TRUE} and the feature matrix has
+#'   more than 25 rows, rows with no significant result across any column are
+#'   dropped before plotting (default \code{FALSE}).
+#' @param title Character string used as the column title of the heatmap
+#'   (default \code{NULL}, no title).
+#'
+#' @return A \code{ComplexHeatmap::Heatmap} object.
+#' @export
 feature_heatmap = function(interested_genes,
                            da_results = "",
                            scale = 1,

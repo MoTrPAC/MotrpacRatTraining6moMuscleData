@@ -15,6 +15,7 @@ library(ggplot2)
 library(here)
 library(MotrpacRatTraining6moMuscleData)
 library(ComplexHeatmap)
+library(tibble)
 source(file.path(here(), "Other_Figures", "MOFA", "mofa_helpers.R"))
 
 mofa_out = file.path(here(), "Other_Figures", "MOFA", "saved_outputs")
@@ -336,43 +337,6 @@ ggsave(file.path(here(), "plots", "MOFA", "variance_explained.png"),
 p_ve
 ```
 
-## Factor plots
-
-Visualize sample loadings on the first four factors, colored by experimental
-variables. I'm not sure why the plot_factors function is not working well for SEDS. 
-
-Just plot through ggplot
-
-```{r, fig.width=8, fig.height=6}
-factor_df = get_factors(mofa_trained, factors = 1:4, as.data.frame = TRUE) %>%
-  left_join(samples_metadata(mofa_trained), by = "sample") %>%
-  mutate(
-    factor = factor(factor, levels = paste0("Factor", 1:4)),
-    timepoint = factor(timepoint, levels = c("SED", "1W", "2W", "4W", "8W"))
-  )
-
-p_factor_sex = ggplot(factor_df, aes(x = "", y = value, fill = sex, shape = timepoint)) +
-  geom_jitter(width = 0.4, height = 0, size = 2.5, color = "black", stroke = 0.4) +
-  facet_wrap(~factor, nrow = 1) +
-  scale_shape_manual(values = c("SED" = 25, "1W" = 21, "2W" = 24, "4W" = 22, "8W" = 23)) +
-  scale_fill_manual(
-    values = c(Female = MotrpacBicQC::sex_cols[["Female"]],
-               Male   = MotrpacBicQC::sex_cols[["Male"]])
-  ) +
-  labs(x = NULL, y = "Factor value", fill = "sex", shape = "timepoint") +
-  theme_bw() +
-  theme(
-    axis.text  = element_text(size = 12),
-    axis.title = element_text(size = 13),
-    strip.text = element_text(size = 12),
-    legend.text  = element_text(size = 11),
-    legend.title = element_text(size = 12)
-  )
-ggsave(file.path(here(), "plots", "MOFA", "factor_plot_by_sex.png"),
-       plot = p_factor_sex, width = 8, height = 6, units = "in", dpi = 600)
-p_factor_sex
-```
-
 Factor 1 appears to separate well by sex.
 
 ## Factor correlations
@@ -394,22 +358,6 @@ for (f in 1:10) {
 
 ```
 
-```{r}
-#custom plots for panel 2, 3
-p = plot_feature_weights(mofa_trained,
-                         factors = 2,
-                         views = "Redox",
-                         n_features = 20,
-                         png_path = file.path(here(), "plots", "MOFA", "custom_panels", paste0("factor", 2, "_redox_feature_weights.png")))
-
-p = plot_feature_weights(mofa_trained,
-                         factors = 3,
-                         views = c("Proteomics",
-                                   "Phosphoproteomics",
-                                   "Redox"),
-                         n_features = 10,
-                         png_path = file.path(here(), "plots", "MOFA", "custom_panels", paste0("factor", 3, "_prot_feature_weights.png")))
-```
 
 ## Enrichment: Transcriptomics
 
@@ -510,118 +458,6 @@ all_enrichments = list(
 sig_all = load_sig_enrichments(mofa_out)
 ```
 
-```{r}
-for (f in 1:10) {
-  p = plot_enrichment_faceted(all_enrichments,
-                              factor = f,
-                              max_pathways = 8,
-                              png_path = file.path(here(), "plots", "MOFA", paste0("factor", f, ".png")))
-  print(p)
-}
-
-```
-
-Custom factor 2,3 plots
-```{r}
-p = plot_enrichment_faceted(list(Redox = enrichment_redox),
-                            factor = 2,
-                            max_pathways = 7,
-                            width = 6,
-                            png_path = file.path(here(), "plots", "MOFA", "custom_panels", paste0("factor", 2, "_redox_pathways.png")))
-print(p)
-
-p = plot_enrichment_faceted(list(Proteomics = enrichment_prot,
-                                 Phosphoproteomics = enrichment_phospho,
-                                 Redox = enrichment_redox),
-                            factor = 3,
-                            max_pathways = 7,
-                            width = 12,
-                            png_path = file.path(here(), "plots", "MOFA","custom_panels",  paste0("factor", 3, "_protein_pathways.png")))
-print(p)
-```
-
-## Combined enrichment bubble heatmap
-
-Bubble heatmap across all views and factors.  Each row is a top significant
-gene set; columns are factors.  Circle size = -log10(padj) (capped at 5 mm),
-circle color = signed -log10(padj) (red = up-weighted, blue = down-weighted),
-grey background = padj < 0.05.
-
-```{r mofa_enrichment_bubble, message=FALSE}
-# Compute global signed -log10(padj) range for a shared colour scale
-compute_signed_logp = function(enrich, n_top=8, padj_threshold=0.05) {
-  factor_cols = intersect(colnames(enrich$up$pval.adj),
-                          colnames(enrich$down$pval.adj))
-  pu = enrich$up$pval.adj[, factor_cols, drop=FALSE]
-  pd = enrich$down$pval.adj[, factor_cols, drop=FALSE]
-  min_p = pmin(apply(pu, 1, min, na.rm=TRUE), apply(pd, 1, min, na.rm=TRUE))
-  sig = names(sort(min_p[min_p < padj_threshold]))[seq_len(min(n_top, sum(min_p < padj_threshold)))]
-  if (length(sig) == 0) return(numeric(0))
-  as.vector(ifelse(pu[sig, , drop=FALSE] <= pd[sig, , drop=FALSE],
-                   -log10(pu[sig, , drop=FALSE]),
-                   log10(pd[sig, , drop=FALSE])))
-}
-
-all_vals = unlist(lapply(all_enrichments, compute_signed_logp))
-max_abs_logp = min(max(abs(all_vals), na.rm=TRUE), 20)
-
-col_fun_enrich = circlize::colorRamp2(
-  c(-max_abs_logp, 0, max_abs_logp),
-  c("#3366ff", "white", "darkred")
-)
-
-ome_cols_mofa = c(
-  Transcriptomics="#377EB8",
-  Proteomics="#4DAF4A",
-  Phosphoproteomics="#FF7F00",
-  Redox="#74add1",
-  Metabolomics="#E41A1C"
-)
-
-color_lg = ComplexHeatmap::Legend(
-  title="-log10(padj)\n(+ up, \u2212 down)",
-  col_fun=col_fun_enrich,
-  at=c(-round(max_abs_logp), 0, round(max_abs_logp)),
-  legend_height=grid::unit(4, "cm")
-)
-ome_lg = ComplexHeatmap::Legend(
-  title="View",
-  at=names(ome_cols_mofa),
-  legend_gp=grid::gpar(fill=ome_cols_mofa)
-)
-sig_lg = ComplexHeatmap::Legend(
-  title="Significance",
-  at="padj < 0.05",
-  legend_gp=grid::gpar(fill="grey90", col=NA)
-)
-
-enrich_heatmaps = list()
-for (v in names(all_enrichments)) {
-  ht = make_mofa_enrichment_heatmap(
-    enrichment=all_enrichments[[v]],
-    view_name=v,
-    ome_cols=ome_cols_mofa,
-    col_fun=col_fun_enrich,
-    n_top=8
-  )
-  if (!is.null(ht)) enrich_heatmaps[[v]] = ht
-}
-
-if (length(enrich_heatmaps) > 0) {
-  combined_enrich = Reduce(`%v%`, enrich_heatmaps)
-  png_path = file.path(here(), "plots", "MOFA", "enrichment_bubble_heatmap.png")
-  png(png_path, width=12, height=10, units="in", res=600)
-  ComplexHeatmap::draw(
-    combined_enrich,
-    heatmap_legend_list=list(color_lg, ome_lg, sig_lg),
-    merge_legend=TRUE,
-    heatmap_legend_side="left"
-  )
-  dev.off()
-  cat("Saved:", png_path, "\n")
-}
-```
-
 ## Feature heatmaps
 
 ```{r feature_heatmaps, fig.width=10, fig.height=6, results='hide', message=FALSE}
@@ -639,54 +475,150 @@ for (f in 1:10) {
 }
 ```
 
+Modified version of the other mofa heatmaps to include M-F comparisons. 
 
-```{r}
-ht = mofa_feature_heatmap_zscore(mofa_trained, 
-                                 views = c("Proteomics",
-                                           "Phosphoproteomics",
-                                           "Redox"),
-                                 factor_num=3, n=8, scale=3)
+```{r mofa-feature-heatmap-prot-selected}
+ome_cols_mofa = c(
+  Transcriptomics="#377EB8",
+  Proteomics="#4DAF4A",
+  Phosphoproteomics="#FF7F00",
+  Redox="#74add1",
+  Metabolomics="#E41A1C"
+)
 
-if (!is.null(ht)) {
-    png_path = file.path(here(), "plots", "MOFA", "custom_panels", paste0("factor", 3, "_prot_heatmap.png"))
-    png(png_path, width=10, height=12, units="in", res=600)
-    ComplexHeatmap::draw(ht, merge_legend=TRUE,
-                         column_title=paste0("Factor ", 3),
-                         column_title_gp=grid::gpar(fontsize=14, fontface="bold"))
-    dev.off()
-    cat("Saved:", png_path, "\n")
+genes = c("COX7A2", "ND5", "CKMT2", "SOD1", "MGST3", "GSTM2", "GSTA1", "FHL1", "PRKAG2", "PLIN5", "SORBS1", "NDUFA5")
+phospho_sites = c("PDLIM3_T137", "RTN2_S195", "KLC1_S460")
+redox_sites = c("CSRP3_C120", "LMCD1_C278", "FHL1_C26")
+metabolites = c("TG(48:2)", "TG(56:6)", "TG(54:5)_LP_E", "TG(52:7)_LP_B",
+                  "TG(46:0)", "TG(46:1)_LP_B", "GLUTAMIC ACID")
+
+padj_cutoff = 0.05
+scale = 3
+
+contrast_order = c(
+  "F_1W - F_SED", "F_2W - F_SED", "F_4W - F_SED", "F_8W - F_SED",
+  "M_1W - M_SED", "M_2W - M_SED", "M_4W - M_SED", "M_8W - M_SED",
+  "M_SED - F_SED", "M_8W - F_8W"
+)
+
+ome_dfs = list(
+  Transcriptomics = get_gene_df(
+    list(TRNSCRPT_GN_DA$trained_vs_SED, TRNSCRPT_GN_DA$MvF), genes),
+  Proteomics = get_gene_df(
+    list(PROT_GN_DA$trained_vs_SED, PROT_GN_DA$MvF), genes),
+  Phosphoproteomics = get_ptm_df(
+    list(PHOSPHO_GN_NORM_DA$trained_vs_SED, PHOSPHO_GN_NORM_DA$MvF),
+    fData(PHOSPHO_GN_NORM), phospho_sites),
+  Redox = get_ptm_df(
+    list(REDOX_GN_NORM_DA$trained_vs_SED, REDOX_GN_NORM_DA$MvF),
+    fData(REDOX_GN_NORM), redox_sites),
+  Metabolomics = get_metab_df(
+    list(METAB_GN_DA$trained_vs_SED, METAB_GN_DA$MvF), metabolites)
+)
+ome_dfs = Filter(function(x) !is.null(x) && nrow(x) > 0, ome_dfs)
+
+z_mats = list()
+fdr_mats = list()
+view_labels = c()
+
+for (ome in names(ome_dfs)) {
+  df = ome_dfs[[ome]]
+
+  df_complete = df %>%
+    tidyr::complete(row_id, contrast = contrast_order,
+                    fill = list(z = NA_real_, adj.P.Val = NA_real_))
+
+  make_wide = function(val_col) {
+    df_complete %>%
+      mutate(contrast = factor(contrast, levels = contrast_order)) %>%
+      pivot_wider(id_cols = row_id, names_from = contrast,
+                  values_from = all_of(val_col)) %>%
+      column_to_rownames("row_id") %>%
+      as.matrix()
   }
 
-```
-
-```{r}
-phospho_mofa_to_da = function(mofa_features) {
-  m = site_map %>%
-    dplyr::filter(gene_site %in% mofa_features)
-  setNames(m$feature_id, m$gene_site)
+  z_mats[[ome]] = make_wide("z")
+  fdr_mats[[ome]] = make_wide("adj.P.Val")
+  view_labels = c(view_labels, rep(ome, nrow(z_mats[[ome]])))
 }
 
-redox_mofa_to_da = function(mofa_features) {
-  m = redox_feature_map %>%
-    dplyr::filter(gene_site %in% mofa_features)
-  setNames(m$feature_id, m$gene_site)
-}
+z_combined = do.call(rbind, z_mats)
+fdr_combined = do.call(rbind, fdr_mats)
 
-# deep dive specifically on Factor 2 redox
-ht = mofa_feature_heatmap_da(mofa_trained,
-                             factor_num=2,
-                             view_da=list(Redox = REDOX_GN_NORM_DA[["trained_vs_SED"]]),
-                             view_gene_map=list(Redox = redox_mofa_to_da),
-                             n=20,
-                             scale=3)
-if (!is.null(ht)) {
-  png_path = file.path(here(), "plots", "MOFA", "custom_panels", paste0("factor", 2, "_deepdive_heatmap.png"))
-  png(png_path, width=10, height=10, units="in", res=600)
-  ComplexHeatmap::draw(ht, merge_legend=TRUE,
-                       column_title=paste0("Factor ", 2),
-                       column_title_gp=grid::gpar(fontsize=14, fontface="bold"))
-  dev.off()
-  cat("Saved:", png_path, "\n")
-}
+# Left annotation: ome color bar matching ome_cols_mofa
+present_views = unique(view_labels)
+view_cols = ome_cols_mofa[intersect(names(ome_cols_mofa), present_views)]
+
+left_ann = ComplexHeatmap::rowAnnotation(
+  View = ComplexHeatmap::anno_simple(view_labels, col = view_cols, border = TRUE),
+  show_annotation_name = FALSE,
+  width = grid::unit(4, "mm"),
+  annotation_legend_param = list(
+    title = "View",
+    border = "black",
+    labels_gp = grid::gpar(fontsize = 5.5 * scale),
+    title_gp = grid::gpar(fontsize = 7 * scale, fontface = "bold")
+  )
+)
+
+max_abs = max(abs(z_combined), na.rm = TRUE)
+
+col_split = factor(
+  c("Female","Female","Female","Female","Male","Male","Male","Male","M-F","M-F"),
+  levels = c("Female","Male","M-F")
+)
+
+col_labels = latex2exp::TeX(
+  c(rep(paste0(2^(0:3), "W - SED"), times = 2),
+    "M$_{SED}$ - F$_{SED}$", "M$_{8W}$ - F$_{8W}$")
+)
+
+ht = ComplexHeatmap::Heatmap(
+  matrix = z_combined,
+  col = circlize::colorRamp2(c(-max_abs, 0, max_abs), c("#3366ff", "white", "darkred")),
+  cluster_columns = FALSE,
+  cluster_rows = TRUE,
+  show_column_names = TRUE,
+  column_labels = col_labels,
+  column_names_rot = 90,
+  column_names_gp = grid::gpar(fontsize = 6 * scale),
+  left_annotation = left_ann,
+  border = "black",
+  na_col = "grey80",
+  row_names_gp = grid::gpar(fontsize = 6 * scale),
+  height = nrow(z_combined) * grid::unit(6.5, "pt") * scale,
+  width = ncol(z_combined) * grid::unit(5.5, "pt") * scale,
+  column_split = col_split,
+  row_split = factor(view_labels, levels = names(z_mats)),
+  heatmap_legend_param = list(
+    title = "DA Z-Score",
+    at = c(-round(max_abs), 0, round(max_abs)),
+    title_gp = grid::gpar(fontsize = 7 * scale, fontface = "bold"),
+    labels_gp = grid::gpar(fontsize = 6 * scale),
+    legend_height = 5 * scale * grid::unit(8, "pt"),
+    border = "black"
+  ),
+  cell_fun = function(j, i, x, y, width, height, fill) {
+    grid::grid.rect(x = x, y = y, width = width, height = height,
+                    gp = grid::gpar(col = "#555555", fill = NA))
+    if (!is.na(fdr_combined[i, j]) && fdr_combined[i, j] < padj_cutoff) {
+      gb = grid::textGrob("*")
+      gb_w = grid::convertWidth(grid::grobWidth(gb), "mm")
+      gb_h = grid::convertHeight(grid::grobHeight(gb), "mm")
+      grid::grid.text("*", x, y - gb_h * 0.5 + gb_w * 0.4)
+    }
+  }
+)
+
+height_in = max(nrow(z_combined) * 6.5 * scale / 72 + 3, 6)
+png_path = file.path(here(), "plots", "MOFA", "factor10_selected_features.png")
+png(png_path, width = 10, height = height_in, units = "in", res = 600)
+ComplexHeatmap::draw(ht,
+                     merge_legend = TRUE,
+                     align_heatmap_legend = "heatmap_top",
+                     align_annotation_legend = "heatmap_top",
+                     legend_gap = grid::unit(0.1, "in"))
+dev.off()
+cat("Saved:", png_path, "\n")
 ```
 
