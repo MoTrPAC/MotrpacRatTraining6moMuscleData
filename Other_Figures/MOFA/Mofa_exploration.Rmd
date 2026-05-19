@@ -481,14 +481,14 @@ Modified version of the other mofa heatmaps to include M-F comparisons.
 ome_cols_mofa = c(
   Transcriptomics="#377EB8",
   Proteomics="#4DAF4A",
-  Phosphoproteomics="#FF7F00",
+  Phospho="#FF7F00",
   Redox="#74add1",
   Metabolomics="#E41A1C"
 )
 
-genes = c("COX7A2", "ND5", "CKMT2", "SOD1", "MGST3", "GSTM2", "GSTA1", "FHL1", "PRKAG2", "PLIN5", "SORBS1", "NDUFA5")
+genes = c("COX7A2", "ND5", "CKMT2", "SOD1", "MGST3", "GSTM2", "GSTA1", "FHL1", "PRKAG2", "PLIN5", "SORBS1", "NDUFA5", "RBP4")
 phospho_sites = c("PDLIM3_T137", "RTN2_S195", "KLC1_S460")
-redox_sites = c("CSRP3_C120", "LMCD1_C278", "FHL1_C26")
+redox_sites = c("CSRP3_C120", "LMCD1_C278", "FHL1_C26", "RBP4_C192")
 metabolites = c("TG(48:2)", "TG(56:6)", "TG(54:5)_LP_E", "TG(52:7)_LP_B",
                   "TG(46:0)", "TG(46:1)_LP_B", "GLUTAMIC ACID")
 
@@ -502,11 +502,9 @@ contrast_order = c(
 )
 
 ome_dfs = list(
-  Transcriptomics = get_gene_df(
-    list(TRNSCRPT_GN_DA$trained_vs_SED, TRNSCRPT_GN_DA$MvF), genes),
   Proteomics = get_gene_df(
     list(PROT_GN_DA$trained_vs_SED, PROT_GN_DA$MvF), genes),
-  Phosphoproteomics = get_ptm_df(
+  Phospho = get_ptm_df(
     list(PHOSPHO_GN_NORM_DA$trained_vs_SED, PHOSPHO_GN_NORM_DA$MvF),
     fData(PHOSPHO_GN_NORM), phospho_sites),
   Redox = get_ptm_df(
@@ -548,6 +546,7 @@ fdr_combined = do.call(rbind, fdr_mats)
 # Left annotation: ome color bar matching ome_cols_mofa
 present_views = unique(view_labels)
 view_cols = ome_cols_mofa[intersect(names(ome_cols_mofa), present_views)]
+names(view_cols)[names(view_cols) == "Phosphoproteomics"] = "Phospho"
 
 left_ann = ComplexHeatmap::rowAnnotation(
   View = ComplexHeatmap::anno_simple(view_labels, col = view_cols, border = TRUE),
@@ -577,7 +576,7 @@ ht = ComplexHeatmap::Heatmap(
   matrix = z_combined,
   col = circlize::colorRamp2(c(-max_abs, 0, max_abs), c("#3366ff", "white", "darkred")),
   cluster_columns = FALSE,
-  cluster_rows = TRUE,
+  cluster_rows = FALSE,
   show_column_names = TRUE,
   column_labels = col_labels,
   column_names_rot = 90,

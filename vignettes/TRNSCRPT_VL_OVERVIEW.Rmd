@@ -65,7 +65,7 @@ pca_df = pca_df %>%
   left_join(pd[, c("viallabel", "sex", "timepoint")], by = "viallabel") %>%
   mutate(
     timepoint = recode(timepoint, "SED" = "control"),
-    timepoint = factor(timepoint, levels = c("1W", "2W", "4W", "8W", "control"))
+    timepoint = factor(timepoint, levels = c("control", "1W", "2W", "4W", "8W"))
   )
 ```
 
@@ -90,7 +90,6 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = sex, fill = timepoint, shape = sex)
   theme_bw()
 # ggsave(filename = file.path(here(), "plots", "pcas", "trnscrpt_vl.pdf"))
 ```
-
 # Session Info
 
 ```{r}

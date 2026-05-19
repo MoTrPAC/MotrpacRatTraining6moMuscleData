@@ -1,8 +1,8 @@
 Package: MotrpacRatTraining6moMuscleData
 Type: Package
 Title: Analysis of MoTrPAC Rat Skeletal Muscle -Omics Data
-Version: 0.1.1.1
-Date: 2026-02-24
+Version: 0.1.1.2
+Date: 2026-05-19
 Authors@R: 
     c(person(given = "Christopher", family = "Jin",
              email = "cajin@stanford.edu",
@@ -29,12 +29,14 @@ Depends:
     R (>= 3.6.0)
 Imports:
     stats,
-    conflicted,
     limma,
     edgeR,
     Biobase,
+    circlize,
     data.table,
-    dplyr
+    dplyr,
+    tidyr,
+    MotrpacBicQC
 Suggests:
     biomaRt,
     ComplexHeatmap,
@@ -52,8 +54,8 @@ Suggests:
     rmarkdown,
     testthat (>= 3.0.0),
     tibble,
-    tidyr,
-    TMSig (>= 1.3.0)
+    TMSig (>= 1.3.0),
+    usethis
 Remotes:
     bioc::Biobase,
     bioc::biomaRt,
@@ -64,8 +66,9 @@ Remotes:
     bioc::Mfuzz,
     github::MoTrPAC/MotrpacRatTraining6moData,
     github::MoTrPAC/MotrpacRatTraining6moWAT,
-    github::pnnl/TMSig
+    github::pnnl/TMSig,
+    github::MoTrPAC/MotrpacBicQC
 VignetteBuilder: knitr
-RoxygenNote: 7.3.3
 Roxygen: list(markdown = TRUE)
 License: MIT + file LICENSE
+Config/roxygen2/version: 8.0.0

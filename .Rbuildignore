@@ -7,3 +7,8 @@
 ^vignettes/articles$
 ^doc$
 ^Meta$
+^\.claude$
+^CLAUDE\.md$
+^README\.Rmd$
+^regenerate_figures\.sh$
+^Other_Figures$

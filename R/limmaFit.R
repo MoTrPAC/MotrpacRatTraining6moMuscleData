@@ -11,7 +11,7 @@
 #' @param contrasts character; (optional) one or more contrasts of the form
 #'   \code{"varA - varB"}, where \code{var} is a predictor included in
 #'   \code{model.str}. Contrasts involving interactions are not allowed. See
-#'   \code{\link{paircomp}} for assistance with creating these contrasts.
+#'   See \code{paircomp} for assistance with creating these contrasts.
 #' @param trend logical, character; should an intensity-dependent trend be
 #'   allowed for the prior variance? If \code{FALSE}, then the prior variance is
 #'   constant. Alternatively, \code{trend} can be the name of a column in
@@ -188,8 +188,7 @@
 #'                  contrasts = "groupA - groupB")
 #' head(fit5$coefficients) # coefficients same as fit5$coefficients[, "groupB"]
 #'
-#' @importFrom limma is.fullrank nonEstimable arrayWeights duplicateCorrelation
-#'   lmFit makeContrasts contrasts.fit eBayes plotMDS plotSA
+#' @importFrom limma is.fullrank nonEstimable arrayWeights duplicateCorrelation lmFit makeContrasts contrasts.fit eBayes plotMDS plotSA
 #' @importFrom edgeR DGEList filterByExpr normLibSizes voomLmFit
 #' @importFrom Biobase exprs pData fData fData<- featureNames
 #' @importFrom stats terms model.matrix

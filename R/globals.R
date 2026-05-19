@@ -11,6 +11,17 @@ utils::globalVariables(
     "set_size_in_input",
     "background_size",
     "input_size",
-    "p_value"
+    "p_value",
+    # feature_heatmap NSE column references
+    ".",
+    "adj.P.Val",
+    "contrast",
+    "gene_symbol",
+    "group",
+    "sex",
+    "Sex",
+    "Timepoint",
+    "value",
+    "z"
   )
 )

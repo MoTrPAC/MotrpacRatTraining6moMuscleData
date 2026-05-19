@@ -39,7 +39,7 @@ metab_GN_refmet_sets   # Metabolomics
 
 # Vastus lateralis
 trnscrpt_VL_gene_sets  # Transcriptomics
-metab_GN_gene_sets     # Metabolomics
+#'
 }
 \description{
 Gene sets from the C5 and C8 collections of the Molecular

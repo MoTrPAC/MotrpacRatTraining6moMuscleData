@@ -65,7 +65,7 @@ pca_df = pca_df %>%
   left_join(pd[, c("viallabel", "sex", "timepoint")], by = "viallabel") %>%
   mutate(
     timepoint = recode(timepoint, "SED" = "control"),
-    timepoint = factor(timepoint, levels = c("1W", "2W", "4W", "8W", "control"))
+    timepoint = factor(timepoint, levels = c("control", "1W", "2W", "4W", "8W"))
   )
 ```
 

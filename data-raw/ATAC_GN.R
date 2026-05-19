@@ -271,5 +271,19 @@ lapply(
 
 
 # # Save
-# usethis::use_data(ATAC_GN_DA_05FDR_norm, overwrite = TRUE, version = 3)
-# usethis::use_data(ATAC_GN_DA_10FDR_norm, overwrite = TRUE, version = 3)
+usethis::use_data(ATAC_GN_DA_05FDR_norm, overwrite = TRUE, version = 3)
+usethis::use_data(ATAC_GN_DA_10FDR_norm, overwrite = TRUE, version = 3)
+
+# invisible(
+#   mapply(
+#     function(x, nm) {
+#       write.csv(
+#         x,
+#         file = file.path(sprintf("ATAC_GN_DA_05FDR_norm_%s.csv", nm)),
+#         row.names = FALSE
+#       )
+#     },
+#     ATAC_GN_DA_05FDR_norm,
+#     names(ATAC_GN_DA_05FDR_norm)
+#   )
+# )

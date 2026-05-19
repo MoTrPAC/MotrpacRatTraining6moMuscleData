@@ -26,6 +26,10 @@
 #'   (default \code{NULL}, no title).
 #'
 #' @return A \code{ComplexHeatmap::Heatmap} object.
+#'
+#' @importFrom dplyr group_by slice_min ungroup select distinct rename
+#' @importFrom tidyr complete pivot_wider
+#' @importFrom stats setNames
 #' @export
 feature_heatmap = function(interested_genes,
                            da_results = "",

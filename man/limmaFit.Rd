@@ -25,7 +25,7 @@ predictors (usually columns of \code{pData(object)}.}
 \item{contrasts}{character; (optional) one or more contrasts of the form
 \code{"varA - varB"}, where \code{var} is a predictor included in
 \code{model.str}. Contrasts involving interactions are not allowed. See
-\code{\link{paircomp}} for assistance with creating these contrasts.}
+See \code{paircomp} for assistance with creating these contrasts.}
 
 \item{trend}{logical, character; should an intensity-dependent trend be
 allowed for the prior variance? If \code{FALSE}, then the prior variance is
