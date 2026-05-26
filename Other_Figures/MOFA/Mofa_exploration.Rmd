@@ -621,3 +621,5 @@ dev.off()
 cat("Saved:", png_path, "\n")
 ```
 
+See `Other_Figures/MOFA/Additional_Figures_code.Rmd` for additional implementations for specific figure panels.
+
